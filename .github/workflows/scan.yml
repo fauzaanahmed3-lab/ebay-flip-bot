@@ -1,0 +1,31 @@
+name: eBay scan
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # every 10 minutes (GitHub may delay runs a little at busy times)
+  workflow_dispatch:          # lets you press "Run workflow" by hand to test
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
+      EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+    steps:
+      - name: Skip until keys are added
+        if: env.EBAY_CLIENT_ID == ''
+        run: echo "Secrets not set yet - nothing to do."
+      - uses: actions/checkout@v4
+        if: env.EBAY_CLIENT_ID != ''
+      - uses: actions/setup-python@v5
+        if: env.EBAY_CLIENT_ID != ''
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+        if: env.EBAY_CLIENT_ID != ''
+      - run: python scanner.py
+        if: env.EBAY_CLIENT_ID != ''
