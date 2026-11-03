@@ -3,7 +3,12 @@ name: eBay scan
 on:
   schedule:
     - cron: "*/10 * * * *"   # every 10 minutes (GitHub may delay runs a little at busy times)
-  workflow_dispatch:          # lets you press "Run workflow" by hand to test
+  workflow_dispatch:          # lets you press "Run workflow" by hand
+    inputs:
+      test:
+        description: "Only send a test alert (no eBay search)"
+        type: boolean
+        default: false
 
 jobs:
   scan:
@@ -15,17 +20,18 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      RUN_IT: ${{ secrets.EBAY_CLIENT_ID != '' || inputs.test == true }}
     steps:
-      - name: Skip until keys are added
-        if: env.EBAY_CLIENT_ID == ''
-        run: echo "Secrets not set yet - nothing to do."
+      - name: Skip until eBay keys are added
+        if: env.RUN_IT != 'true'
+        run: echo "eBay keys not set yet - nothing to do."
       - uses: actions/checkout@v4
-        if: env.EBAY_CLIENT_ID != ''
+        if: env.RUN_IT == 'true'
       - uses: actions/setup-python@v5
-        if: env.EBAY_CLIENT_ID != ''
+        if: env.RUN_IT == 'true'
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-        if: env.EBAY_CLIENT_ID != ''
-      - run: python scanner.py
-        if: env.EBAY_CLIENT_ID != ''
+        if: env.RUN_IT == 'true'
+      - run: python scanner.py ${{ inputs.test == true && '--test' || '' }}
+        if: env.RUN_IT == 'true'
