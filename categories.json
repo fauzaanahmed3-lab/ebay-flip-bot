@@ -1,0 +1,64 @@
+{
+  "packaging_cost": 1,
+  "offer_zone_pct": 0.10,
+  "global_blacklist": [
+    "faulty", "spares", "for parts", "parts only", "repair", "broken", "cracked",
+    "not working", "untested", "read description", "see desc", "please read",
+    "box only", "case only", "empty box", "shell", "replacement", "headband assembly",
+    "no sound", "drift", "scratched lens", "missing", "damaged", "water damage",
+    "cushions", "ear pads", "earpads", "cover only", "charger only", "cable only"
+  ],
+  "categories": [
+    {
+      "id": "quest3", "label": "Meta Quest 3", "query": "meta quest 3",
+      "price_min": 120, "price_max": 330, "post_out": 8,
+      "exclude": ["3s", "quest 2", "quest pro", "controller only", "strap only", "headset only"],
+      "variants": [
+        {"name": "512GB", "match": "512", "strong": 345},
+        {"name": "128GB", "match": null, "strong": 278, "note": "provisional price"}
+      ]
+    },
+    {
+      "id": "steamdeck", "label": "Steam Deck OLED", "query": "steam deck oled",
+      "price_min": 250, "price_max": 480, "post_out": 9,
+      "exclude": ["lcd", "64gb", "256gb", "dock only"],
+      "variants": [
+        {"name": "1TB", "match": "1tb|1 tb", "strong": 555},
+        {"name": "512GB", "match": null, "strong": 530}
+      ]
+    },
+    {
+      "id": "xm6", "label": "Sony WH-1000XM6", "query": "sony wh-1000xm6",
+      "price_min": 100, "price_max": 220, "post_out": 6,
+      "exclude": ["wf-", "wf1000", "earbud", "xm5", "xm4"],
+      "variants": [{"name": "XM6", "match": null, "strong": 240}]
+    },
+    {
+      "id": "qcultra", "label": "Bose QC Ultra Headphones", "query": "bose quietcomfort ultra headphones",
+      "price_min": 70, "price_max": 240, "post_out": 6,
+      "exclude": ["earbuds", "earbud", "qc45", "qc35"],
+      "variants": [
+        {"name": "Gen 2", "match": "2nd gen|gen 2|gen2|2nd generation|\\(2nd", "strong": 260},
+        {"name": "Gen 1", "match": null, "strong": 185}
+      ]
+    },
+    {
+      "id": "xm5", "label": "Sony WH-1000XM5", "query": "sony wh-1000xm5",
+      "price_min": 50, "price_max": 100, "post_out": 6,
+      "exclude": ["wf-", "wf1000", "earbud", "xm6", "xm4"],
+      "variants": [{"name": "XM5", "match": null, "strong": 137}]
+    },
+    {
+      "id": "momentum4", "label": "Sennheiser Momentum 4", "query": "sennheiser momentum 4",
+      "price_min": 50, "price_max": 100, "post_out": 6,
+      "exclude": ["true wireless", "earbuds", "earbud", "momentum 3"],
+      "variants": [{"name": "Momentum 4", "match": null, "strong": 140}]
+    },
+    {
+      "id": "supersonic", "label": "Dyson Supersonic", "query": "dyson supersonic hair dryer",
+      "price_min": 35, "price_max": 90, "post_out": 7,
+      "exclude": ["airwrap", "corrale", "attachment", "diffuser", "nozzle", "stand", "filter"],
+      "variants": [{"name": "Supersonic", "match": null, "strong": 125, "note": "check for fakes"}]
+    }
+  ]
+}
