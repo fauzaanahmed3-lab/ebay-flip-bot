@@ -206,6 +206,25 @@ def discord_alert(row: dict) -> None:
     requests.post(os.environ["DISCORD_WEBHOOK_URL"], json=payload, timeout=20).raise_for_status()
 
 
+def send_test() -> int:
+    """Send one fake alert through Supabase + Discord to prove the pipeline works (no eBay needed)."""
+    row = {
+        "item_id": f"TEST-{int(datetime.now(timezone.utc).timestamp())}",
+        "category": "quest3", "variant": "512GB",
+        "title": "TEST ALERT - the bot is connected (not a real listing)",
+        "url": "https://www.ebay.co.uk", "image_url": None,
+        "price": 270, "shipping": 0, "all_in": 270, "buy_target": 286,
+        "expected_sell": 345, "profit": 66, "required_profit": 50,
+        "verdict": "DEAL", "suggested_offer": None,
+        "seller": "test-seller", "seller_feedback": 50, "seller_pct": 100.0,
+        "flags": "this is only a test", "listed_at": None, "status": "test",
+    }
+    saved = save_new([row])
+    discord_alert(saved[0] if saved else row)
+    print("Test alert saved to Supabase and sent to Discord.")
+    return 0
+
+
 # ---------- main ----------
 
 def main() -> int:
@@ -234,4 +253,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(send_test() if "--test" in sys.argv else main())
