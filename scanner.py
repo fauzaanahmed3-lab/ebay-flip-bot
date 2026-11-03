@@ -262,6 +262,14 @@ def already_seen(ids: list[str]) -> set[str]:
     return {row["item_id"] for row in r.json()}
 
 
+def has_history() -> bool:
+    """False on the very first real run, so old listings already on eBay don't all alert at once."""
+    r = requests.get(f"{os.environ['SUPABASE_URL']}/rest/v1/{TABLE}", headers=sb_headers(),
+                     params={"select": "item_id", "status": "neq.test", "limit": 1}, timeout=20)
+    r.raise_for_status()
+    return bool(r.json())
+
+
 def save_new(rows: list[dict]) -> list[dict]:
     if not rows:
         return []
@@ -362,7 +370,12 @@ def main() -> int:
         for r in results:
             print(json.dumps(r, indent=2, default=str))
         return 0
-    for row in save_new(results):
+    first_run = not has_history()
+    saved = save_new(results)
+    if first_run:
+        print(f"First run: remembered {len(saved)} existing listings without alerting.")
+        return 0
+    for row in saved:
         if row["verdict"] != "REJECT":
             discord_alert(row)
     return 0
