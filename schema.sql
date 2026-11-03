@@ -22,7 +22,10 @@ create table if not exists public.flip_listings (
   listed_at        timestamptz,
   first_seen       timestamptz not null default now(),
   status           text not null default 'new',   -- new / main / extra / bought / gone / rejected
-  review_note      text           -- Claude's note from the 10am review
+  review_note      text,          -- Claude's note from the 10am review
+  lane             text,          -- EXACT / GEM / UNCONFIRMED (or VAGUE for rejects)
+  rating           text,          -- HOT / SOLID / CHECK
+  notes            text           -- plain-English notes shown in Discord
 );
 
 create index if not exists flip_listings_first_seen_idx on public.flip_listings (first_seen desc);

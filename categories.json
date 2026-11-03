@@ -1,64 +1,407 @@
 {
   "packaging_cost": 1,
-  "offer_zone_pct": 0.10,
-  "global_blacklist": [
-    "faulty", "spares", "for parts", "parts only", "repair", "broken", "cracked",
-    "not working", "untested", "read description", "see desc", "please read",
-    "box only", "case only", "empty box", "shell", "replacement", "headband assembly",
-    "no sound", "drift", "scratched lens", "missing", "damaged", "water damage",
-    "cushions", "ear pads", "earpads", "cover only", "charger only", "cable only"
+  "offer_zone_pct": 0.1,
+  "max_detail_lookups": 20,
+  "unconfirmed_extra_margin": 30,
+  "hot_ratio": 1.5,
+  "junk": [
+    "faulty",
+    "spares",
+    "for parts",
+    "parts only",
+    "repair",
+    "broken",
+    "cracked",
+    "not working",
+    "untested",
+    "read description",
+    "see desc",
+    "please read",
+    "box only",
+    "empty box",
+    "shell",
+    "replacement",
+    "headband",
+    "no sound",
+    "drift",
+    "scratched",
+    "missing",
+    "damaged",
+    "water damage",
+    "cushion",
+    "ear pads",
+    "earpads",
+    "cover only",
+    "charger only",
+    "cable only",
+    "needs attention",
+    "job lot",
+    "dummy",
+    "replica",
+    "display model"
   ],
   "categories": [
     {
-      "id": "quest3", "label": "Meta Quest 3", "query": "meta quest 3",
-      "price_min": 120, "price_max": 330, "post_out": 8,
-      "exclude": ["3s", "quest 2", "quest pro", "controller only", "strap only", "headset only"],
-      "variants": [
-        {"name": "512GB", "match": "512", "strong": 345},
-        {"name": "128GB", "match": null, "strong": 278, "note": "provisional price"}
+      "id": "quest3",
+      "label": "Meta Quest 3",
+      "enabled": true,
+      "weekly_sales": 60,
+      "queries": [
+        "meta quest 3",
+        "meta quest vr headset"
+      ],
+      "category_hint": [
+        "virtual reality",
+        "vr",
+        "video game"
+      ],
+      "price_min": 120,
+      "price_max": 320,
+      "post_out": 8,
+      "family": "(meta|oculus).*(quest|vr|headset)|quest.*(vr|headset)",
+      "wrong": [
+        "quest ?3s\\b",
+        "quest ?2\\b",
+        "quest ?pro",
+        "controllers? only",
+        "strap only",
+        "battery strap"
+      ],
+      "models": [
+        {
+          "name": "Quest 3 512GB",
+          "match": "quest ?3\\b(?!s).*512|512.*quest ?3\\b(?!s)",
+          "strong": 345
+        },
+        {
+          "name": "Quest 3 128GB",
+          "match": "quest ?3\\b(?!s)",
+          "strong": 278,
+          "note": "128GB resale price is still an estimate"
+        }
+      ],
+      "wrong_specs": [
+        "quest ?3s\\b",
+        "quest ?2\\b"
       ]
     },
     {
-      "id": "steamdeck", "label": "Steam Deck OLED", "query": "steam deck oled",
-      "price_min": 250, "price_max": 480, "post_out": 9,
-      "exclude": ["lcd", "64gb", "256gb", "dock only"],
-      "variants": [
-        {"name": "1TB", "match": "1tb|1 tb", "strong": 555},
-        {"name": "512GB", "match": null, "strong": 530}
+      "id": "steamdeck",
+      "label": "Steam Deck OLED",
+      "enabled": true,
+      "weekly_sales": 28,
+      "queries": [
+        "steam deck oled",
+        "steam deck"
+      ],
+      "category_hint": [
+        "console",
+        "video game"
+      ],
+      "price_min": 250,
+      "price_max": 500,
+      "post_out": 9,
+      "family": "steam ?deck",
+      "wrong": [
+        "\\blcd\\b",
+        "64 ?gb",
+        "256 ?gb",
+        "dock only",
+        "case only"
+      ],
+      "models": [
+        {
+          "name": "Steam Deck OLED 1TB",
+          "match": "oled.*1 ?tb|1 ?tb.*oled",
+          "strong": 555
+        },
+        {
+          "name": "Steam Deck OLED 512GB",
+          "match": "oled",
+          "strong": 530
+        }
+      ],
+      "wrong_specs": [
+        "\\blcd\\b"
       ]
     },
     {
-      "id": "xm6", "label": "Sony WH-1000XM6", "query": "sony wh-1000xm6",
-      "price_min": 100, "price_max": 220, "post_out": 6,
-      "exclude": ["wf-", "wf1000", "earbud", "xm5", "xm4"],
-      "variants": [{"name": "XM6", "match": null, "strong": 240}]
-    },
-    {
-      "id": "qcultra", "label": "Bose QC Ultra Headphones", "query": "bose quietcomfort ultra headphones",
-      "price_min": 70, "price_max": 240, "post_out": 6,
-      "exclude": ["earbuds", "earbud", "qc45", "qc35"],
-      "variants": [
-        {"name": "Gen 2", "match": "2nd gen|gen 2|gen2|2nd generation|\\(2nd", "strong": 260},
-        {"name": "Gen 1", "match": null, "strong": 185}
+      "id": "sony",
+      "label": "Sony WH-1000X headphones",
+      "enabled": true,
+      "weekly_sales": 38,
+      "queries": [
+        "sony wh-1000xm6",
+        "sony wh-1000xm5",
+        "sony noise cancelling headphones"
+      ],
+      "category_hint": [
+        "headphone"
+      ],
+      "price_min": 50,
+      "price_max": 210,
+      "post_out": 6,
+      "family": "sony.*(headphone|noise cancel|over.?ear|wireless)",
+      "wrong": [
+        "xm[234]\\b",
+        "\\bwf\\b",
+        "earbud",
+        "in.?ear",
+        "ch ?7\\d0",
+        "\\bult\\b",
+        "zx\\d"
+      ],
+      "models": [
+        {
+          "name": "Sony WH-1000XM6",
+          "match": "xm6",
+          "strong": 240
+        },
+        {
+          "name": "Sony WH-1000XM5",
+          "match": "xm5",
+          "strong": 137
+        }
+      ],
+      "wrong_specs": [
+        "xm[234]\\b",
+        "earbud",
+        "in.?ear",
+        "\\bwf\\b"
       ]
     },
     {
-      "id": "xm5", "label": "Sony WH-1000XM5", "query": "sony wh-1000xm5",
-      "price_min": 50, "price_max": 100, "post_out": 6,
-      "exclude": ["wf-", "wf1000", "earbud", "xm6", "xm4"],
-      "variants": [{"name": "XM5", "match": null, "strong": 137}]
+      "id": "bose",
+      "label": "Bose QC Ultra headphones",
+      "enabled": true,
+      "weekly_sales": 9,
+      "queries": [
+        "bose quietcomfort ultra headphones",
+        "bose noise cancelling headphones"
+      ],
+      "category_hint": [
+        "headphone"
+      ],
+      "price_min": 70,
+      "price_max": 230,
+      "post_out": 6,
+      "family": "bose.*(headphone|noise cancel|over.?ear|quietcomfort|qc)",
+      "wrong": [
+        "earbud",
+        "in.?ear",
+        "qc ?45",
+        "qc ?35",
+        "\\b700\\b",
+        "sport",
+        "soundlink",
+        "ultra open"
+      ],
+      "models": [
+        {
+          "name": "Bose QC Ultra Gen 2",
+          "match": "ultra.*(2nd|gen ?2|second)|(2nd|gen ?2|second).*ultra",
+          "strong": 260
+        },
+        {
+          "name": "Bose QC Ultra Gen 1",
+          "match": "ultra",
+          "strong": 185
+        }
+      ],
+      "wrong_specs": [
+        "earbud",
+        "in.?ear"
+      ]
     },
     {
-      "id": "momentum4", "label": "Sennheiser Momentum 4", "query": "sennheiser momentum 4",
-      "price_min": 50, "price_max": 100, "post_out": 6,
-      "exclude": ["true wireless", "earbuds", "earbud", "momentum 3"],
-      "variants": [{"name": "Momentum 4", "match": null, "strong": 140}]
+      "id": "momentum4",
+      "label": "Sennheiser Momentum 4",
+      "enabled": true,
+      "weekly_sales": 12,
+      "queries": [
+        "sennheiser momentum 4"
+      ],
+      "category_hint": [
+        "headphone"
+      ],
+      "price_min": 50,
+      "price_max": 95,
+      "post_out": 6,
+      "family": "sennheiser.*(momentum|headphone)",
+      "wrong": [
+        "momentum ?(true|tw|sport|2|3)\\b",
+        "\\bhd ?\\d",
+        "earbud",
+        "in.?ear",
+        "on.?ear"
+      ],
+      "models": [
+        {
+          "name": "Sennheiser Momentum 4",
+          "match": "momentum ?4",
+          "strong": 140
+        }
+      ],
+      "wrong_specs": [
+        "true wireless",
+        "earbud",
+        "in.?ear"
+      ]
     },
     {
-      "id": "supersonic", "label": "Dyson Supersonic", "query": "dyson supersonic hair dryer",
-      "price_min": 35, "price_max": 90, "post_out": 7,
-      "exclude": ["airwrap", "corrale", "attachment", "diffuser", "nozzle", "stand", "filter"],
-      "variants": [{"name": "Supersonic", "match": null, "strong": 125, "note": "check for fakes"}]
+      "id": "supersonic",
+      "label": "Dyson Supersonic",
+      "enabled": true,
+      "weekly_sales": 4,
+      "queries": [
+        "dyson supersonic"
+      ],
+      "category_hint": [
+        "hair"
+      ],
+      "price_min": 35,
+      "price_max": 75,
+      "post_out": 7,
+      "family": "dyson.*(hair|dryer)",
+      "wrong": [
+        "airwrap",
+        "corrale",
+        "attachment",
+        "diffuser",
+        "nozzle",
+        "\\bstand\\b",
+        "filter",
+        "motor",
+        "coil",
+        "motherboard",
+        "pcb",
+        "presentation case",
+        "storage case",
+        "case only"
+      ],
+      "models": [
+        {
+          "name": "Dyson Supersonic",
+          "match": "supersonic",
+          "strong": 125,
+          "note": "Dyson fakes exist: check the serial sticker and photos"
+        }
+      ],
+      "wrong_specs": [
+        "airwrap",
+        "corrale"
+      ]
+    },
+    {
+      "id": "oneplus",
+      "label": "OnePlus 13+",
+      "enabled": false,
+      "weekly_sales": null,
+      "phone": true,
+      "queries": [
+        "oneplus 13",
+        "oneplus 15"
+      ],
+      "category_hint": [
+        "mobile",
+        "phone"
+      ],
+      "price_min": 150,
+      "price_max": 600,
+      "post_out": 5,
+      "family": "oneplus",
+      "wrong": [
+        "oneplus ?(1[0-2]|[1-9])\\b",
+        "nord",
+        "\\bcase\\b",
+        "screen protector"
+      ],
+      "models": [],
+      "todo": "add models + strong prices after sold-price research",
+      "wrong_specs": []
+    },
+    {
+      "id": "xiaomi",
+      "label": "Xiaomi 17 Pro (Global)",
+      "enabled": false,
+      "weekly_sales": null,
+      "phone": true,
+      "require": [
+        "global"
+      ],
+      "queries": [
+        "xiaomi 17 pro global"
+      ],
+      "category_hint": [
+        "mobile",
+        "phone"
+      ],
+      "price_min": 200,
+      "price_max": 700,
+      "post_out": 5,
+      "family": "xiaomi",
+      "wrong": [
+        "\\bcn\\b",
+        "china (rom|version)",
+        "chinese",
+        "redmi",
+        "poco",
+        "\\bcase\\b"
+      ],
+      "models": [],
+      "todo": "add models + strong prices after sold-price research",
+      "wrong_specs": [
+        "\\bcn\\b",
+        "china"
+      ]
+    },
+    {
+      "id": "samsung",
+      "label": "Samsung Galaxy flagships",
+      "enabled": false,
+      "weekly_sales": null,
+      "phone": true,
+      "queries": [
+        "samsung galaxy s25 ultra"
+      ],
+      "category_hint": [
+        "mobile",
+        "phone"
+      ],
+      "price_min": 200,
+      "price_max": 800,
+      "post_out": 5,
+      "family": "samsung|galaxy",
+      "wrong": [
+        "\\bcase\\b",
+        "screen protector",
+        "\\bfe\\b"
+      ],
+      "models": [],
+      "todo": "pick models + strong prices after sold-price research",
+      "wrong_specs": []
     }
-  ]
+  ],
+  "phone_rules": {
+    "min_feedback": 50,
+    "min_pct": 98,
+    "junk": [
+      "frp",
+      "icloud",
+      "google lock",
+      "account lock",
+      "blocked",
+      "blacklist",
+      "network locked",
+      "locked to",
+      "burn",
+      "burn-in",
+      "ghost",
+      "green line",
+      "camera fault",
+      "camera issue",
+      "no face id",
+      "fingerprint not"
+    ]
+  }
 }
