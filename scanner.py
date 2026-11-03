@@ -172,7 +172,6 @@ def save_new(rows: list[dict]) -> list[dict]:
         f"{os.environ['SUPABASE_URL']}/rest/v1/{TABLE}?on_conflict=item_id",
         headers={
             "apikey": os.environ["SUPABASE_SERVICE_KEY"],
-            "Authorization": f"Bearer {os.environ['SUPABASE_SERVICE_KEY']}",
             "Content-Type": "application/json",
             "Prefer": "resolution=ignore-duplicates,return=representation",
         },
