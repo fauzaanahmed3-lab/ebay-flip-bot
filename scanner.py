@@ -255,6 +255,14 @@ def ebay_token() -> str:
     )
     if not r.ok:
         print(f"eBay token error {r.status_code}: {r.text[:300]}")
+        print("Key check (values hidden):")
+        for name in ("EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"):
+            v = os.environ[name].strip()
+            env = "PRODUCTION" if "PRD" in v else "SANDBOX" if "SBX" in v else "UNKNOWN"
+            kind = ("App ID" if v.count("-") == 4 and not v.startswith(("PRD-", "SBX-"))
+                    else "Cert ID" if v.startswith(("PRD-", "SBX-"))
+                    else "looks like Dev ID" if len(v) == 36 and v.count("-") == 4 else "unrecognised")
+            print(f"  {name}: length {len(v)}, {env}, {kind}")
     r.raise_for_status()
     return r.json()["access_token"]
 
