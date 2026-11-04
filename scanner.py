@@ -245,7 +245,7 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
 # ---------- eBay ----------
 
 def ebay_token() -> str:
-    creds = f"{os.environ['EBAY_CLIENT_ID']}:{os.environ['EBAY_CLIENT_SECRET']}"
+    creds = f"{os.environ['EBAY_CLIENT_ID'].strip()}:{os.environ['EBAY_CLIENT_SECRET'].strip()}"
     r = requests.post(
         f"{EBAY_API}/identity/v1/oauth2/token",
         headers={"Authorization": "Basic " + base64.b64encode(creds.encode()).decode(),
@@ -253,6 +253,8 @@ def ebay_token() -> str:
         data={"grant_type": "client_credentials", "scope": "https://api.ebay.com/oauth/api_scope"},
         timeout=20,
     )
+    if not r.ok:
+        print(f"eBay token error {r.status_code}: {r.text[:300]}")
     r.raise_for_status()
     return r.json()["access_token"]
 
