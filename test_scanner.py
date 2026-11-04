@@ -77,3 +77,27 @@ check("phone: low-feedback seller rejected", s.score(phone, c, details()), None)
 check("phone: FRP lock rejected", s.triage(phone, item("OnePlus 13 FRP locked", 200, fb=500)), None)
 
 print(f"\n{sum(R)}/{len(R)} passed")
+
+# ---- review fixes ----
+R2 = []
+def check2(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R2.append(ok)
+
+check2("£100 rule applies above £500 too", s.required_profit(650), 100)
+check2("'nothing missing' is not junk", s.junk_word(["missing"], "boxed, nothing missing"), None)
+check2("'no scratches' is not junk", s.junk_word(["scratched", "scratch"], "no scratches at all"), None)
+check2("'missing charger' is junk", s.junk_word(["missing"], "missing charger"), "missing")
+check2("quest with bobovr headband no longer rejected", s.triage(CATS["quest3"], item("Meta Quest 3 128GB with bobovr headband", 200))["lane"], "EXACT")
+check2("sony headband-only part rejected", s.triage(CATS["sony"], item("Sony WH-1000XM6 headband only", 60)), None)
+r = run("samsung", item("Samsung Galaxy S26 Ultra 512GB unlocked", 690, fb=300), details())
+check2("S26 Ultra 512 deal needs £100", (r["variant"], r["required_profit"], r["profit"] >= 100), ("Galaxy S26 Ultra 512GB", 100, True))
+check2("Galaxy FE rejected", s.triage(CATS["samsung"], item("Samsung Galaxy S25 FE", 300, fb=300)), None)
+r = run("oneplus", item("OnePlus 15 256GB", 500, fb=200), details())
+check2("OnePlus 15 untagged = 256 + IMEI note", (r["variant"], "IMEI" in r["notes"]), ("OnePlus 15 256GB", True))
+check2("OnePlus 13R rejected", s.triage(CATS["oneplus"], item("OnePlus 13R 256GB", 300, fb=200)), None)
+check2("phone from 20-feedback seller rejected", run("oneplus", item("OnePlus 15 256GB", 450, fb=20), details()), None)
+it = item("Sony WH-1000XM6 sealed", 160); it["condition"] = "New"
+check2("unused item gets a note", "Listed as 'New'" in run("sony", it, details())["notes"], True)
+print(f"review fixes: {sum(R2)}/{len(R2)} passed")

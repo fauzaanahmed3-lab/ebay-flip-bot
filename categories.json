@@ -1,7 +1,7 @@
 {
   "packaging_cost": 1,
   "offer_zone_pct": 0.1,
-  "max_detail_lookups": 20,
+  "max_detail_lookups": 10,
   "unconfirmed_extra_margin": 30,
   "hot_ratio": 1.5,
   "junk": [
@@ -20,17 +20,12 @@
     "box only",
     "empty box",
     "shell",
-    "replacement",
-    "headband",
     "no sound",
     "drift",
     "scratched",
     "missing",
     "damaged",
     "water damage",
-    "cushion",
-    "ear pads",
-    "earpads",
     "cover only",
     "charger only",
     "cable only",
@@ -38,14 +33,18 @@
     "job lot",
     "dummy",
     "replica",
-    "display model"
+    "display model",
+    "for repair",
+    "spares or repair",
+    "icloud",
+    "frp"
   ],
   "categories": [
     {
       "id": "quest3",
       "label": "Meta Quest 3",
       "enabled": true,
-      "weekly_sales": 60,
+      "weekly_sales": 100,
       "queries": [
         "meta quest 3",
         "meta quest vr headset"
@@ -76,8 +75,7 @@
         {
           "name": "Quest 3 128GB",
           "match": "quest ?3\\b(?!s)",
-          "strong": 278,
-          "note": "128GB resale price is still an estimate"
+          "strong": 285
         }
       ],
       "wrong_specs": [
@@ -149,7 +147,11 @@
         "in.?ear",
         "ch ?7\\d0",
         "\\bult\\b",
-        "zx\\d"
+        "zx\\d",
+        "headband (only|assembly)",
+        "replacement (headband|pads|cushions)",
+        "(ear ?)?pads? only",
+        "cushions? only"
       ],
       "models": [
         {
@@ -194,7 +196,11 @@
         "\\b700\\b",
         "sport",
         "soundlink",
-        "ultra open"
+        "ultra open",
+        "headband (only|assembly)",
+        "replacement (headband|pads|cushions)",
+        "(ear ?)?pads? only",
+        "cushions? only"
       ],
       "models": [
         {
@@ -233,7 +239,11 @@
         "\\bhd ?\\d",
         "earbud",
         "in.?ear",
-        "on.?ear"
+        "on.?ear",
+        "headband (only|assembly)",
+        "replacement (headband|pads|cushions)",
+        "(ear ?)?pads? only",
+        "cushions? only"
       ],
       "models": [
         {
@@ -294,92 +304,124 @@
     },
     {
       "id": "oneplus",
-      "label": "OnePlus 13+",
-      "enabled": false,
-      "weekly_sales": null,
+      "label": "OnePlus 13 / 15",
+      "enabled": true,
       "phone": true,
+      "weekly_sales": 11,
       "queries": [
-        "oneplus 13",
-        "oneplus 15"
+        "oneplus 15",
+        "oneplus 13"
       ],
       "category_hint": [
         "mobile",
         "phone"
       ],
-      "price_min": 150,
-      "price_max": 600,
-      "post_out": 5,
+      "price_min": 250,
+      "price_max": 670,
+      "post_out": 6,
       "family": "oneplus",
       "wrong": [
         "oneplus ?(1[0-2]|[1-9])\\b",
+        "\\b1[35] ?[rs]\\b",
         "nord",
+        "\\bace\\b",
         "\\bcase\\b",
-        "screen protector"
+        "screen protector",
+        "\\bpad\\b",
+        "buds",
+        "watch"
       ],
-      "models": [],
-      "todo": "add models + strong prices after sold-price research",
-      "wrong_specs": []
-    },
-    {
-      "id": "xiaomi",
-      "label": "Xiaomi 17 Pro (Global)",
-      "enabled": false,
-      "weekly_sales": null,
-      "phone": true,
-      "require": [
-        "global"
-      ],
-      "queries": [
-        "xiaomi 17 pro global"
-      ],
-      "category_hint": [
-        "mobile",
-        "phone"
-      ],
-      "price_min": 200,
-      "price_max": 700,
-      "post_out": 5,
-      "family": "xiaomi",
-      "wrong": [
-        "\\bcn\\b",
-        "china (rom|version)",
-        "chinese",
-        "redmi",
-        "poco",
-        "\\bcase\\b"
-      ],
-      "models": [],
-      "todo": "add models + strong prices after sold-price research",
       "wrong_specs": [
-        "\\bcn\\b",
-        "china"
+        "\\b1[35] ?r\\b",
+        "nord"
+      ],
+      "models": [
+        {
+          "name": "OnePlus 15 512GB",
+          "match": "oneplus ?15\\b.*(512|1 ?tb)|(512|1 ?tb).*oneplus ?15\\b",
+          "strong": 715
+        },
+        {
+          "name": "OnePlus 15 256GB",
+          "match": "oneplus ?15\\b",
+          "strong": 625,
+          "note": "Storage not stated: priced as 256GB"
+        },
+        {
+          "name": "OnePlus 13 512GB",
+          "match": "oneplus ?13\\b.*(512|1 ?tb)|(512|1 ?tb).*oneplus ?13\\b",
+          "strong": 565
+        },
+        {
+          "name": "OnePlus 13 256GB",
+          "match": "oneplus ?13\\b",
+          "strong": 460,
+          "note": "Storage not stated: priced as 256GB. OnePlus 13 sells slower (~4-6/week)"
+        }
       ]
     },
     {
       "id": "samsung",
-      "label": "Samsung Galaxy flagships",
-      "enabled": false,
-      "weekly_sales": null,
+      "label": "Samsung Galaxy S25/S26 Ultra",
+      "enabled": true,
       "phone": true,
+      "weekly_sales": 45,
       "queries": [
+        "samsung galaxy s26 ultra",
         "samsung galaxy s25 ultra"
       ],
       "category_hint": [
         "mobile",
         "phone"
       ],
-      "price_min": 200,
-      "price_max": 800,
-      "post_out": 5,
+      "price_min": 300,
+      "price_max": 960,
+      "post_out": 6,
       "family": "samsung|galaxy",
       "wrong": [
+        "\\bfe\\b",
+        "flip",
+        "fold",
+        "\\btab\\b",
+        "watch",
+        "buds",
+        "s2[0-4]\\b",
         "\\bcase\\b",
         "screen protector",
+        "dummy"
+      ],
+      "wrong_specs": [
         "\\bfe\\b"
       ],
-      "models": [],
-      "todo": "pick models + strong prices after sold-price research",
-      "wrong_specs": []
+      "models": [
+        {
+          "name": "Galaxy S26 Ultra 1TB",
+          "match": "s26 ?ultra.*1 ?tb|1 ?tb.*s26 ?ultra",
+          "strong": 985
+        },
+        {
+          "name": "Galaxy S26 Ultra 512GB",
+          "match": "s26 ?ultra.*512|512.*s26 ?ultra",
+          "strong": 815
+        },
+        {
+          "name": "Galaxy S26 Ultra 256GB",
+          "match": "s26 ?ultra",
+          "strong": 720,
+          "note": "Storage not stated: priced as 256GB"
+        },
+        {
+          "name": "Galaxy S25 Ultra 512GB",
+          "match": "s25 ?ultra.*(512|1 ?tb)|(512|1 ?tb).*s25 ?ultra",
+          "strong": 615
+        },
+        {
+          "name": "Galaxy S25 Ultra 256GB",
+          "match": "s25 ?ultra",
+          "strong": 560,
+          "note": "Storage not stated: priced as 256GB"
+        }
+      ]
     }
   ],
   "phone_rules": {
