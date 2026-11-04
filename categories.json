@@ -64,18 +64,24 @@
         "quest ?pro",
         "controllers? only",
         "strap only",
-        "battery strap"
+        "battery strap",
+        "headset only",
+        "no controllers",
+        "without controllers",
+        "missing controller"
       ],
       "models": [
         {
           "name": "Quest 3 512GB",
           "match": "quest ?3\\b(?!s).*512|512.*quest ?3\\b(?!s)",
-          "strong": 345
+          "strong": 345,
+          "typical": 313
         },
         {
           "name": "Quest 3 128GB",
           "match": "quest ?3\\b(?!s)",
-          "strong": 285
+          "strong": 285,
+          "typical": 247
         }
       ],
       "wrong_specs": [
@@ -111,12 +117,14 @@
         {
           "name": "Steam Deck OLED 1TB",
           "match": "oled.*1 ?tb|1 ?tb.*oled",
-          "strong": 555
+          "strong": 555,
+          "typical": 540
         },
         {
           "name": "Steam Deck OLED 512GB",
           "match": "oled",
-          "strong": 530
+          "strong": 530,
+          "typical": 480
         }
       ],
       "wrong_specs": [
@@ -157,12 +165,14 @@
         {
           "name": "Sony WH-1000XM6",
           "match": "xm6",
-          "strong": 240
+          "strong": 240,
+          "typical": 201
         },
         {
           "name": "Sony WH-1000XM5",
           "match": "xm5",
-          "strong": 137
+          "strong": 137,
+          "typical": 107
         }
       ],
       "wrong_specs": [
@@ -206,12 +216,14 @@
         {
           "name": "Bose QC Ultra Gen 2",
           "match": "ultra.*(2nd|gen ?2|second)|(2nd|gen ?2|second).*ultra",
-          "strong": 260
+          "strong": 260,
+          "typical": 213
         },
         {
           "name": "Bose QC Ultra Gen 1",
           "match": "ultra",
-          "strong": 185
+          "strong": 185,
+          "typical": 152
         }
       ],
       "wrong_specs": [
@@ -249,7 +261,8 @@
         {
           "name": "Sennheiser Momentum 4",
           "match": "momentum ?4",
-          "strong": 140
+          "strong": 140,
+          "typical": 110
         }
       ],
       "wrong_specs": [
@@ -294,7 +307,8 @@
           "name": "Dyson Supersonic",
           "match": "supersonic",
           "strong": 125,
-          "note": "Dyson fakes exist: check the serial sticker and photos"
+          "note": "Dyson fakes exist: check the serial sticker and photos",
+          "typical": 80
         }
       ],
       "wrong_specs": [
@@ -339,24 +353,28 @@
         {
           "name": "OnePlus 15 512GB",
           "match": "oneplus ?15\\b.*(512|1 ?tb)|(512|1 ?tb).*oneplus ?15\\b",
-          "strong": 715
+          "strong": 715,
+          "typical": 679
         },
         {
           "name": "OnePlus 15 256GB",
           "match": "oneplus ?15\\b",
           "strong": 625,
-          "note": "Storage not stated: priced as 256GB"
+          "note": "Storage not stated: priced as 256GB",
+          "typical": 537
         },
         {
           "name": "OnePlus 13 512GB",
           "match": "oneplus ?13\\b.*(512|1 ?tb)|(512|1 ?tb).*oneplus ?13\\b",
-          "strong": 565
+          "strong": 565,
+          "typical": 500
         },
         {
           "name": "OnePlus 13 256GB",
           "match": "oneplus ?13\\b",
           "strong": 460,
-          "note": "Storage not stated: priced as 256GB. OnePlus 13 sells slower (~4-6/week)"
+          "note": "Storage not stated: priced as 256GB. OnePlus 13 sells slower (~4-6/week)",
+          "typical": 435
         }
       ]
     },
@@ -397,29 +415,34 @@
         {
           "name": "Galaxy S26 Ultra 1TB",
           "match": "s26 ?ultra.*1 ?tb|1 ?tb.*s26 ?ultra",
-          "strong": 985
+          "strong": 985,
+          "typical": 925
         },
         {
           "name": "Galaxy S26 Ultra 512GB",
           "match": "s26 ?ultra.*512|512.*s26 ?ultra",
-          "strong": 815
+          "strong": 815,
+          "typical": 751
         },
         {
           "name": "Galaxy S26 Ultra 256GB",
           "match": "s26 ?ultra",
           "strong": 720,
-          "note": "Storage not stated: priced as 256GB"
+          "note": "Storage not stated: priced as 256GB",
+          "typical": 685
         },
         {
           "name": "Galaxy S25 Ultra 512GB",
           "match": "s25 ?ultra.*(512|1 ?tb)|(512|1 ?tb).*s25 ?ultra",
-          "strong": 615
+          "strong": 615,
+          "typical": 588
         },
         {
           "name": "Galaxy S25 Ultra 256GB",
           "match": "s25 ?ultra",
           "strong": 560,
-          "note": "Storage not stated: priced as 256GB"
+          "note": "Storage not stated: priced as 256GB",
+          "typical": 507
         }
       ]
     }

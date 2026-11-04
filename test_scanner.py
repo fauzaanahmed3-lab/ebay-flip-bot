@@ -31,7 +31,7 @@ def check(name, got, want):
 check("normalise 'WH-1000 XM 6'", "xm6" in s.norm("Sony WH-1000 XM 6"), True)
 check("steam deck target uses £100 rule", s.buy_target(530, 9), 420)
 
-r = run("quest3", item("Meta Quest 3 512GB with controllers", 255, fb=250), details())
+r = run("quest3", item("Meta Quest 3 512GB with controllers", 240, fb=250), details())
 check("quest 512 exact + big margin = HOT", (r["lane"], r["verdict"], r["rating"], r["variant"]), ("EXACT", "DEAL", "HOT", "Quest 3 512GB"))
 check("quest 3S rejected", run("quest3", item("Meta Quest 3S 128GB", 150), details()), None)
 check("quest 3 standalone not mistaken for 3S", s.triage(CATS["quest3"], item("Meta Quest 3 Standalone VR Headset", 150))["lane"], "EXACT")
@@ -72,8 +72,7 @@ check("damage in condition notes rejected", run("sony", item("Sony WH-1000XM6", 
 
 phone = {"id": "p", "phone": True, "post_out": 5, "family": "oneplus", "wrong": [], "wrong_specs": [], "price_min": 1,
          "price_max": 999, "queries": [], "category_hint": None, "models": [{"name": "OnePlus 13", "match": "oneplus 13", "strong": 450}]}
-c = s.triage(phone, item("OnePlus 13 256GB", 300, fb=20))
-check("phone: low-feedback seller rejected", s.score(phone, c, details()), None)
+check("phone: low-feedback seller rejected before any lookup", s.triage(phone, item("OnePlus 13 256GB", 300, fb=20)), None)
 check("phone: FRP lock rejected", s.triage(phone, item("OnePlus 13 FRP locked", 200, fb=500)), None)
 
 print(f"\n{sum(R)}/{len(R)} passed")
@@ -101,3 +100,23 @@ check2("phone from 20-feedback seller rejected", run("oneplus", item("OnePlus 15
 it = item("Sony WH-1000XM6 sealed", 160); it["condition"] = "New"
 check2("unused item gets a note", "Listed as 'New'" in run("sony", it, details())["notes"], True)
 print(f"review fixes: {sum(R2)}/{len(R2)} passed")
+
+# ---- second review ----
+R3 = []
+def check3(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R3.append(ok)
+
+check3("XM5 priced like an XM6 is dropped before a lookup", s.triage(CATS["sony"], item("Sony WH-1000XM5", 150)), None)
+r = run("quest3", item("Meta Quest 3 512GB", 255, fb=250), details())
+check3("not HOT if it only breaks even at an average price", (r["rating"], r["safe_profit"] < 50), ("SOLID", True))
+check3("vague listing whose specifics name another model is rejected",
+       run("sony", item("Sony noise cancelling headphones black", 90), details({"Model": "Sony WH-CH720N"})), None)
+check3("vague Galaxy that is really an S25+ is rejected",
+       run("samsung", item("Samsung Galaxy smartphone 256GB", 380, fb=200), details({"Model": "Samsung Galaxy S25+"})), None)
+check3("Quest headset only (no controllers) rejected", s.triage(CATS["quest3"], item("Meta Quest 3 128GB headset only", 150)), None)
+it = item("Sony WH-1000XM6", 150); it["shippingOptions"] = []
+r = run("sony", it, details())
+check3("no postage info = note + not HOT", ("Postage not stated" in r["notes"], r["rating"] != "HOT"), (True, True))
+print(f"second review: {sum(R3)}/{len(R3)} passed")

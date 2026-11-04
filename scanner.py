@@ -1,15 +1,16 @@
 """eBay Flip Bot scanner.
 
 Every ~10 minutes (GitHub Actions) it runs the staged filter from the playbook:
-  1. Smart search   - exact AND broad queries per category (eBay Browse API, UK, used, Buy It Now)
+  1. Smart search   - exact AND broad queries per category (eBay Browse API, UK, new+used, Buy It Now)
   2. Price gate     - drop anything above the category's best possible target
   3. Hard reject    - junk words + known wrong models (titles normalised first)
   4. Two lanes      - EXACT (model in title) or VAGUE (brand/family only = possible hidden gem)
   5. Confirm        - one detail lookup per survivor: item specifics, photos, returns, seller
   6. Alert          - rich Discord card with verdict, rating and plain-English notes
 
-Secrets (GitHub Actions): EBAY_CLIENT_ID, EBAY_CLIENT_SECRET, SUPABASE_URL,
-SUPABASE_SERVICE_KEY, DISCORD_WEBHOOK_URL.  DRY_RUN=1 prints instead of saving/alerting.
+Modes: (default) scan · --digest daily picks · --test one fake alert.
+Secrets (GitHub Actions): EBAY_CLIENT_ID, EBAY_CLIENT_SECRET, SUPABASE_URL, SUPABASE_SERVICE_KEY,
+DISCORD_WEBHOOK_URL, DISCORD_DAILY_WEBHOOK_URL.  DRY_RUN=1 prints instead of saving/alerting.
 """
 import base64
 import json
@@ -96,8 +97,9 @@ def triage(cat: dict, item: dict) -> dict | None:
         return None
 
     price = float(item["price"]["value"])
-    ship_opts = item.get("shippingOptions") or [{}]
-    ship = float(ship_opts[0].get("shippingCost", {}).get("value", 0) or 0)
+    ship_opts = item.get("shippingOptions") or []
+    ship_known = bool(ship_opts and "shippingCost" in ship_opts[0])
+    ship = float(ship_opts[0]["shippingCost"].get("value", 0) or 0) if ship_known else 0.0
     all_in = round(price + ship, 2)
 
     best_target = max(buy_target(m["strong"], cat["post_out"]) for m in cat["models"])
@@ -110,28 +112,35 @@ def triage(cat: dict, item: dict) -> dict | None:
     if cat.get("require") and not all(w in t for w in cat["require"]):
         return None
 
+    seller = item.get("seller", {})
+    fb = int(seller.get("feedbackScore", 0) or 0)
+    pct = float(seller.get("feedbackPercentage", 0) or 0)
+    if cat.get("phone") and (fb < CONFIG["phone_rules"]["min_feedback"] or pct < CONFIG["phone_rules"]["min_pct"]):
+        return None                                                      # phones: strict sellers only
+
     hints = cat.get("category_hint")
     names = " ".join(c.get("categoryName", "") for c in item.get("categories", [])).lower()
     if hints and names and not any(h in names for h in hints):
         return None
 
     model = model_for(cat, t)                                            # stage 4: lanes
+    best_offer = "BEST_OFFER" in item.get("buyingOptions", [])
     if model:
         lane = "EXACT"
+        target = buy_target(model["strong"], cat["post_out"])
+        if all_in > target and not (best_offer and all_in <= target * (1 + CONFIG["offer_zone_pct"])):
+            return None                                                  # e.g. an XM5 priced like an XM6
     elif re.search(cat["family"], t):
         lane = "VAGUE"
     else:
         return None
 
-    seller = item.get("seller", {})
     return {
         "item_id": item["itemId"], "category": cat["id"], "title": title[:200],
         "url": item.get("itemWebUrl"), "image_url": (item.get("image") or {}).get("imageUrl"),
         "price": price, "shipping": ship, "all_in": all_in,
-        "best_offer": "BEST_OFFER" in item.get("buyingOptions", []),
-        "seller": seller.get("username"),
-        "seller_feedback": int(seller.get("feedbackScore", 0) or 0),
-        "seller_pct": float(seller.get("feedbackPercentage", 0) or 0),
+        "best_offer": best_offer, "ship_known": ship_known,
+        "seller": seller.get("username"), "seller_feedback": fb, "seller_pct": pct,
         "listed_at": item.get("itemCreationDate"),
         "lane": lane, "model": model["name"] if model else None,
         "condition": item.get("condition"),
@@ -139,6 +148,8 @@ def triage(cat: dict, item: dict) -> dict | None:
 
 
 # ---------- stage 5: confirm with item details, then score ----------
+
+DROP = ("best_offer", "model", "condition", "ship_known")          # working fields, not stored
 
 def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
     notes = []
@@ -159,6 +170,8 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
         if model:
             lane = "GEM"
             notes.append("Vague title, but the listing details confirm the model. Fewer buyers will spot this.")
+        elif re.search(r"\bmodel\b", aspects):
+            return None                                   # specifics name a model, and it isn't one we want
         else:
             lane = "UNCONFIRMED"
             model = min(cat["models"], key=lambda m: m["strong"])          # price as the cheapest model
@@ -181,19 +194,20 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
 
     pay = suggested_offer + ship if suggested_offer else all_in
     profit = round(model["strong"] - cat["post_out"] - PACK - pay, 2)
+    safe_profit = round(model.get("typical", model["strong"]) - cat["post_out"] - PACK - pay, 2)
     need = required_profit(pay)
 
     # ---- plain-English notes ----
     fb, pct = cand["seller_feedback"], cand["seller_pct"]
     trusted = fb >= 10 and pct >= 97
-    if cat.get("phone") and (fb < CONFIG["phone_rules"]["min_feedback"] or pct < CONFIG["phone_rules"]["min_pct"]):
-        return None                                           # phones: strict sellers only
     if fb < 10:
         notes.append(f"Seller has very little feedback ({fb}). Higher risk.")
     elif pct < 97:
         notes.append(f"Seller feedback is only {pct}%.")
     if photos is not None and photos < 3:
         notes.append(f"Only {photos} photo(s). Ask for more before buying.")
+    if not cand.get("ship_known", True):
+        notes.append("Postage not stated (maybe collection only). Check before counting on this price.")
     if returns_ok is False:
         notes.append("No returns accepted.")
     if all_in < model["strong"] * 0.5:
@@ -211,16 +225,18 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
 
     # ---- rating ----
     fast_seller = (cat.get("weekly_sales") or 0) >= 10
-    if lane in ("EXACT", "GEM") and trusted and profit >= need * CONFIG["hot_ratio"] and verdict == "DEAL":
+    if (lane in ("EXACT", "GEM") and trusted and verdict == "DEAL" and cand.get("ship_known", True)
+            and profit >= need * CONFIG["hot_ratio"] and safe_profit >= need):
         rating = "HOT"
-        notes.insert(0, "Big margin, trusted seller" + (", fast-selling model." if fast_seller else "."))
+        notes.insert(0, "Profitable even at an average sale price, trusted seller"
+                     + (", fast-selling model." if fast_seller else "."))
     elif lane == "UNCONFIRMED" or not trusted:
         rating = "CHECK"
     else:
         rating = "SOLID"
 
-    return {**{k: v for k, v in cand.items() if k not in ("best_offer", "model", "condition")},
-            "variant": model["name"], "lane": lane, "verdict": verdict, "rating": rating,
+    return {**{k: v for k, v in cand.items() if k not in DROP},
+            "safe_profit": safe_profit, "variant": model["name"], "lane": lane, "verdict": verdict, "rating": rating,
             "buy_target": target, "expected_sell": model["strong"], "profit": profit,
             "required_profit": need, "suggested_offer": suggested_offer,
             "notes": "\n".join(notes) or None, "flags": None}
@@ -272,9 +288,9 @@ def already_seen(ids: list[str]) -> dict[str, float]:
         return {}
     quoted = ",".join('"' + i.replace('"', "") + '"' for i in ids)
     r = requests.get(f"{os.environ['SUPABASE_URL']}/rest/v1/{TABLE}",
-                     headers=sb_headers(), params={"select": "item_id,all_in", "item_id": f"in.({quoted})"}, timeout=20)
+                     headers=sb_headers(), params={"select": "item_id,all_in,status", "item_id": f"in.({quoted})"}, timeout=20)
     r.raise_for_status()
-    return {row["item_id"]: float(row["all_in"] or 0) for row in r.json()}
+    return {row["item_id"]: float(row["all_in"] or 0) for row in r.json() if row.get("status") != "retry"}
 
 
 def has_history() -> bool:
@@ -328,22 +344,23 @@ def discord_alert(row: dict) -> None:
         price_line += f"\n**Offer £{row['suggested_offer']}** + postage"
     fields = [
         {"name": "💷 Price", "value": price_line, "inline": True},
-        {"name": "💰 Est. profit", "value": f"~£{row['profit']:.0f} (need £{row['required_profit']})\nresell ~£{row['expected_sell']}", "inline": True},
+        {"name": "💰 Est. profit", "value": (f"~£{row['profit']:.0f} if it resells ~£{row['expected_sell']}\n"
+                                             f"~£{row.get('safe_profit') or 0:.0f} at an average price · need £{row['required_profit']}"), "inline": True},
         {"name": "👤 Seller", "value": f"{row['seller']}\n{row['seller_feedback']} fb · {row['seller_pct']}%", "inline": True},
     ]
     if row.get("notes"):
         fields.append({"name": "📝 Notes", "value": "\n".join(f"• {n}" for n in row["notes"].split("\n"))[:1000], "inline": False})
-    payload = {
-        "content": "@here 🔥 Hot one, act fast" if key == "HOT" else None,
-        "allowed_mentions": {"parse": ["everyone"]} if key == "HOT" else {"parse": []},
-        "embeds": [{
-            "author": {"name": f"{label} · {row['variant']}"},
-            "title": row["title"][:250], "url": row["url"], "color": colour, "fields": fields,
-            "thumbnail": {"url": row["image_url"]} if row.get("image_url") else None,
-            "footer": {"text": f"{row['category']} · {row['lane'].lower()} · rating {row['rating'].lower()}"},
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }],
+    embed = {
+        "author": {"name": f"{label} · {row['variant']}"},
+        "title": row["title"][:250], "url": row["url"], "color": colour, "fields": fields,
+        "footer": {"text": f"{row['category']} · {row['lane'].lower()} · rating {row['rating'].lower()}"},
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    if row.get("image_url"):
+        embed["thumbnail"] = {"url": row["image_url"]}
+    payload = {"embeds": [embed], "allowed_mentions": {"parse": ["everyone"] if key == "HOT" else []}}
+    if key == "HOT":
+        payload["content"] = "@everyone 🔥 Hot one, act fast"
     post_discord(payload)
 
 
@@ -387,7 +404,7 @@ def main() -> int:
         if row:
             results.append(row)
         elif details is not None:                       # remember rejects so we don't re-check them
-            results.append({**{k: v for k, v in c.items() if k not in ("best_offer", "model", "condition")},
+            results.append({**{k: v for k, v in c.items() if k not in DROP},
                             "verdict": "REJECT", "status": "rejected"})
     print(f"{len(fresh)} new candidates, {lookups} detail lookups, "
           f"{sum(r['verdict'] != 'REJECT' for r in results)} alerts")
@@ -401,9 +418,15 @@ def main() -> int:
     if first_run:
         print(f"First run: remembered {len(saved)} existing listings without alerting.")
         return 0
+    failed = []
     for row in saved:
         if row["verdict"] != "REJECT":
-            discord_alert(row)
+            try:
+                discord_alert(row)
+            except requests.RequestException as e:
+                print(f"Discord failed for {row['item_id']}: {e}", file=sys.stderr)
+                failed.append(row["item_id"])
+    sb_set_status(failed, "retry")                    # picked up again on the next run
     return 0
 
 
@@ -479,10 +502,10 @@ def send_test() -> int:
         "item_id": f"TEST-{int(datetime.now(timezone.utc).timestamp())}", "category": "quest3",
         "variant": "Quest 3 512GB", "title": "TEST ALERT: example of a hot deal card (not a real listing)",
         "url": "https://www.ebay.co.uk", "image_url": None, "price": 255, "shipping": 0, "all_in": 255,
-        "buy_target": 286, "expected_sell": 345, "profit": 81, "required_profit": 50,
+        "buy_target": 286, "expected_sell": 345, "profit": 81, "safe_profit": 49, "required_profit": 50,
         "verdict": "DEAL", "suggested_offer": None, "lane": "EXACT", "rating": "HOT",
         "seller": "test-seller", "seller_feedback": 250, "seller_pct": 100.0, "listed_at": None,
-        "notes": "Big margin, trusted seller, fast-selling model.\nThis is only a test.", "status": "test",
+        "notes": "Example card. Real alerts list the seller, photo, postage and returns risks here.\nThis is only a test.", "status": "test",
     }
     saved = save_new([row])
     discord_alert(saved[0] if saved else row)

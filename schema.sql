@@ -25,7 +25,8 @@ create table if not exists public.flip_listings (
   review_note      text,          -- Claude's note from the 10am review
   lane             text,          -- EXACT / GEM / UNCONFIRMED (or VAGUE for rejects)
   rating           text,          -- HOT / SOLID / CHECK
-  notes            text           -- plain-English notes shown in Discord
+  notes            text,          -- plain-English notes shown in Discord
+  safe_profit      numeric        -- profit if it only sells at the average price
 );
 
 create index if not exists flip_listings_first_seen_idx on public.flip_listings (first_seen desc);
