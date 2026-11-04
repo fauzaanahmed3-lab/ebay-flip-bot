@@ -140,7 +140,7 @@ def triage(cat: dict, item: dict) -> dict | None:
         "url": item.get("itemWebUrl"), "image_url": (item.get("image") or {}).get("imageUrl"),
         "price": price, "shipping": ship, "all_in": all_in,
         "best_offer": best_offer, "ship_known": ship_known,
-        "seller": seller.get("username"), "seller_feedback": fb, "seller_pct": pct,
+        "seller": None, "seller_feedback": fb, "seller_pct": pct,
         "listed_at": item.get("itemCreationDate"),
         "lane": lane, "model": model["name"] if model else None,
         "condition": item.get("condition"),
@@ -361,7 +361,7 @@ def discord_alert(row: dict) -> None:
         {"name": "💷 Price", "value": price_line, "inline": True},
         {"name": "💰 Est. profit", "value": (f"~£{row['profit']:.0f} if it resells ~£{row['expected_sell']}\n"
                                              f"~£{row.get('safe_profit') or 0:.0f} at an average price · need £{row['required_profit']}"), "inline": True},
-        {"name": "👤 Seller", "value": f"{row['seller']}\n{row['seller_feedback']} fb · {row['seller_pct']}%", "inline": True},
+        {"name": "👤 Seller", "value": f"{row['seller_feedback']} feedback · {row['seller_pct']}%", "inline": True},
     ]
     if row.get("notes"):
         fields.append({"name": "📝 Notes", "value": "\n".join(f"• {n}" for n in row["notes"].split("\n"))[:1000], "inline": False})
@@ -496,7 +496,7 @@ def daily_digest() -> int:
         tag = {"HOT": "🔥", "SOLID": "🟢", "CHECK": "❓"}.get(r.get("rating"), "•")
         offer = f" · offer £{r['suggested_offer']}" if r.get("suggested_offer") else ""
         return (f"{tag} **[{r['variant']}]({r['url']})**: £{float(r['all_in']):.0f} all-in{offer} → "
-                f"~£{float(r['profit']):.0f} profit · {r['seller']} ({r['seller_feedback']} fb)")
+                f"~£{float(r['profit']):.0f} profit · seller {r['seller_feedback']} fb")
 
     if not main and not extras:
         desc = "No solid deals in the last 24 hours. Nothing worth buying beats a bad buy. 👍"
