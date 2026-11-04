@@ -2,36 +2,42 @@ name: eBay scan
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # every 10 minutes (GitHub may delay runs a little at busy times)
-  workflow_dispatch:          # lets you press "Run workflow" by hand
+    - cron: "*/10 * * * *"   # scan every 10 minutes (GitHub can run a few minutes late)
+    - cron: "40 9 * * *"     # daily picks: 09:40 UTC (lands ~10am UK in winter, ~11am in summer)
+  workflow_dispatch:
     inputs:
-      test:
-        description: "Only send a test alert (no eBay search)"
-        type: boolean
-        default: false
+      mode:
+        description: "What to run"
+        type: choice
+        options: [scan, digest, test]
+        default: scan
 
 jobs:
-  scan:
+  run:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
+    concurrency: ebay-bot        # never run two at once
     env:
       EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
       EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-      RUN_IT: ${{ secrets.EBAY_CLIENT_ID != '' || inputs.test == true }}
+      DISCORD_DAILY_WEBHOOK_URL: ${{ secrets.DISCORD_DAILY_WEBHOOK_URL }}
+      MODE: ${{ github.event.schedule == '40 9 * * *' && 'digest' || inputs.mode || 'scan' }}
+      HAS_KEYS: ${{ secrets.EBAY_CLIENT_ID != '' }}
     steps:
       - name: Skip until eBay keys are added
-        if: env.RUN_IT != 'true'
+        if: env.HAS_KEYS != 'true' && env.MODE != 'test'
         run: echo "eBay keys not set yet - nothing to do."
       - uses: actions/checkout@v4
-        if: env.RUN_IT == 'true'
+        if: env.HAS_KEYS == 'true' || env.MODE == 'test'
       - uses: actions/setup-python@v5
-        if: env.RUN_IT == 'true'
+        if: env.HAS_KEYS == 'true' || env.MODE == 'test'
         with:
           python-version: "3.12"
+          cache: pip
       - run: pip install -r requirements.txt
-        if: env.RUN_IT == 'true'
-      - run: python scanner.py ${{ inputs.test == true && '--test' || '' }}
-        if: env.RUN_IT == 'true'
+        if: env.HAS_KEYS == 'true' || env.MODE == 'test'
+      - run: python scanner.py --${{ env.MODE }}
+        if: env.HAS_KEYS == 'true' || env.MODE == 'test'
