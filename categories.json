@@ -562,7 +562,20 @@
     "\\bgames? only",
     "mario kart only",
     "amiibo",
-    "banned"
+    "banned",
+    "expansion",
+    "storage card",
+    "\\bssd\\b",
+    "steel ?book",
+    "pre ?order",
+    "\\bvr ?2?\\b",
+    "psvr",
+    "headset",
+    "\\bportal\\b",
+    "\\bcamera\\b",
+    "face ?plates?",
+    "\\bgame only\\b",
+    "\\bcodes?\\b"
    ],
    "wrong_specs": [],
    "models": [
@@ -574,7 +587,8 @@
      "note": "New model: check it isn't linked to the seller's account"
     }
    ],
-   "price_max": 344
+   "price_max": 344,
+   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b"
   },
   {
    "id": "osmo3",
@@ -655,7 +669,20 @@
     "\\bpro\\b",
     "portal",
     "\\bps4\\b",
-    "\\bps5 games?\\b"
+    "\\bps5 games?\\b",
+    "expansion",
+    "storage card",
+    "\\bssd\\b",
+    "steel ?book",
+    "pre ?order",
+    "\\bvr ?2?\\b",
+    "psvr",
+    "headset",
+    "\\bportal\\b",
+    "\\bcamera\\b",
+    "face ?plates?",
+    "\\bgame only\\b",
+    "\\bcodes?\\b"
    ],
    "wrong_specs": [
     "\\bpro\\b"
@@ -687,7 +714,8 @@
      "note": "Title doesn't say slim or digital: confirm the model from the photos."
     }
    ],
-   "price_max": 480
+   "price_max": 480,
+   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b"
   },
   {
    "id": "xboxsx",
@@ -723,7 +751,20 @@
     "\\bcode\\b",
     "series ?s\\b",
     "\\b360\\b",
-    "xbox one\\b"
+    "xbox one\\b",
+    "expansion",
+    "storage card",
+    "\\bssd\\b",
+    "steel ?book",
+    "pre ?order",
+    "\\bvr ?2?\\b",
+    "psvr",
+    "headset",
+    "\\bportal\\b",
+    "\\bcamera\\b",
+    "face ?plates?",
+    "\\bgame only\\b",
+    "\\bcodes?\\b"
    ],
    "wrong_specs": [
     "series ?s\\b"
@@ -742,7 +783,8 @@
      "typical": 480
     }
    ],
-   "price_max": 496
+   "price_max": 496,
+   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b"
   },
   {
    "id": "xboxss",
@@ -781,7 +823,19 @@
     "xbox one\\b",
     "\\bone s\\b",
     "expansion card",
-    "storage card"
+    "storage card",
+    "expansion",
+    "\\bssd\\b",
+    "steel ?book",
+    "pre ?order",
+    "\\bvr ?2?\\b",
+    "psvr",
+    "headset",
+    "\\bportal\\b",
+    "\\bcamera\\b",
+    "face ?plates?",
+    "\\bgame only\\b",
+    "\\bcodes?\\b"
    ],
    "wrong_specs": [
     "series ?x\\b"
@@ -801,7 +855,8 @@
      "typical": 255
     }
    ],
-   "price_max": 245
+   "price_max": 245,
+   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b"
   }
  ],
  "phone_rules": {

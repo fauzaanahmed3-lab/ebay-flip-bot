@@ -225,3 +225,31 @@ check7("expansion card rejected", s.triage(CATS["xboxss"], item("Seagate expansi
 check7("offer zone is 12%", s.CONFIG["offer_zone_pct"], 0.12)
 check7("alerts spread over <= 5 minutes (fits the 8-minute job limit)", s.CONFIG["alert_window_sec"] <= 300, True)
 print(f"round 3: {sum(R7)}/{len(R7)} passed")
+
+# ---- real false positives from the first console run (5 Nov 01:17) ----
+R8 = []
+def check8(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R8.append(ok)
+for cat, title, price in [
+    ("xboxsx", "MLB® The Show™ 23 (Xbox Series X) [Complete & Tested]", 12),
+    ("xboxsx", "SanDisk Optimus GX C50 2TB Storage Expansion Card for Xbox Series X|S", 300),
+    ("xboxsx", "WD Black C50 1TB Storage Expansion Card for Xbox Series X|S", 230),
+    ("xboxsx", "Halo Campaign Evolved Steelbook Steel Book Premium Xbox Series X", 30),
+    ("ps5", "Sony PSVR2 PlayStation VR Headset And Controllers PS5", 200),
+    ("ps5", "PS5 Vr2 headset with 2 controllers / Excellent Condition", 200),
+    ("ps5", "PRE-ORDER GTA 6 VI Limited Edition PS5 Controller", 220),
+    ("ps5", "PLAYSTATION 5 VR2 HEADSET AND CONTROLLER CHARGING STATION", 230),
+    ("switch2", "Nintendo Switch 2 Pro Controller Zelda 40th Anniversary", 200),
+]:
+    check8(f"rejected: {title[:45]}", s.triage(CATS[cat], item(title, price, fb=300)), None)
+for cat, title, price in [
+    ("xboxsx", "Xbox Series X Black Console", 300),
+    ("xboxsx", "Microsoft Xbox Series X 1TB Black", 300),
+    ("ps5", "Sony PlayStation 5 Slim Disc Console boxed", 330),
+    ("switch2", "Nintendo Switch 2 Console Black w/ Blue/Red Joy-Cons", 270),
+    ("xboxss", "Xbox Series S 512GB with controller", 150),
+]:
+    check8(f"kept: {title[:45]}", s.triage(CATS[cat], item(title, price, fb=300)) is not None, True)
+print(f"console false positives: {sum(R8)}/{len(R8)} passed")

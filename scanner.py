@@ -123,6 +123,8 @@ def triage(cat: dict, item: dict) -> dict | None:
         return None
     if cat.get("require") and not all(w in t for w in cat["require"]):
         return None
+    if cat.get("require_any") and not re.search(cat["require_any"], t):
+        return None                                  # e.g. consoles: title must look like a console, not a game or accessory
 
     seller = item.get("seller", {})
     fb = int(seller.get("feedbackScore", 0) or 0)
