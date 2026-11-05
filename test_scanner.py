@@ -120,3 +120,35 @@ it = item("Sony WH-1000XM6", 150); it["shippingOptions"] = []
 r = run("sony", it, details())
 check3("no postage info = note + not HOT", ("Postage not stated" in r["notes"], r["rating"] != "HOT"), (True, True))
 print(f"second review: {sum(R3)}/{len(R3)} passed")
+
+# ---- third review: real false positives from the first live run (5 Nov) ----
+R4 = []
+def check4(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R4.append(ok)
+
+for cat, title, price in [
+    ("momentum4", "Dekoni Choice Series Leather Headphone Pads for Sennheiser Momentum 4", 50),
+    ("quest3", "10000mAh Battery Head Strap Replacement for Meta Quest 3/3S VR 18W Fast Charging", 181.5),
+    ("sony", "Sony wh-1000xm5 - working but snapped", 73.54),
+    ("sony", "Sony WH-1000XM5 Wireless Noise Cancelling Headphones Blue - see notes", 78),
+    ("sony", "SONY WH-1000XM4C Wireless Bluetooth Noise-Cancelling Headphones", 150),
+    ("supersonic", "x4 Dyson Supersonic Hair Dryer Accessories - Free & Fast Dispatch", 39.99),
+    ("supersonic", "Dyson Supersonic HD11 Professional Hair Dryer Nickel For hair salons Etc - READ", 48.64),
+    ("supersonic", "Dyson Supersonic Hair Dryer - Nickel/Fuchsia HD03", 49.98),
+    ("bose", "Bose QuietComfort 45 SE Headphones - Black", 102.88),
+    ("bose", "Bose QuietComfort Wireless Over-Ear Headphones - White Smoke", 119.02),
+]:
+    check4(f"rejected for free: {title[:45]}", s.triage(CATS[cat], item(title, price)), None)
+check4("Chinese-model phone rejected", s.triage(CATS["oneplus"], item("OnePlus 13 512GB Very Good Chinese Model", 390, fb=205)), None)
+check4("pink line screen rejected", s.triage(CATS["samsung"], item("Samsung Galaxy S26 Ultra 256GB Unlocked PINK LINE", 586, fb=1559)), None)
+check4("Bose earbuds caught by details",
+       run("bose", item("Bose QuietComfort Ultra Noise Cancelling Bluetooth Wireless 1st Gen- Moonstone", 119.62, fb=1023),
+           details({"Type": "Earbud (In Ear)"})), None)
+check4("'with accessories' is still allowed", s.triage(CATS["supersonic"], item("Dyson Supersonic Hair Dryer Anthracite/Fuchsia With Accessories", 60)) is not None, True)
+check4("genuine OnePlus 15 512 offer still found",
+       run("oneplus", item("OnePlus 15 CPH2747 512GB 16GB RAM OxygenOS White", 625.7, offer=True, fb=2170), details())["verdict"], "OFFER")
+r = run("supersonic", item("Dyson Supersonic Hair Dryer Anthracite/Fuchsia With Accessories", 64.15, fb=929), details())
+check4("thin margin (~£8 at average) is CHECK, not SOLID", r["rating"], "CHECK")
+print(f"third review: {sum(R4)}/{len(R4)} passed")

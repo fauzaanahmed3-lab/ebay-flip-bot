@@ -37,7 +37,11 @@
     "for repair",
     "spares or repair",
     "icloud",
-    "frp"
+    "frp",
+    "replacement",
+    "snapped",
+    "pink line",
+    "dekoni"
   ],
   "categories": [
     {
@@ -149,7 +153,6 @@
       "post_out": 6,
       "family": "sony.*(headphone|noise cancel|over.?ear|wireless)",
       "wrong": [
-        "xm[234]\\b",
         "\\bwf\\b",
         "earbud",
         "in.?ear",
@@ -159,7 +162,12 @@
         "headband (only|assembly)",
         "replacement (headband|pads|cushions)",
         "(ear ?)?pads? only",
-        "cushions? only"
+        "cushions? only",
+        "xm[234]",
+        "\\bxb ?\\d",
+        "\\bmdr",
+        "wh ?ch",
+        "\\bult"
       ],
       "models": [
         {
@@ -201,8 +209,6 @@
       "wrong": [
         "earbud",
         "in.?ear",
-        "qc ?45",
-        "qc ?35",
         "\\b700\\b",
         "sport",
         "soundlink",
@@ -210,7 +216,12 @@
         "headband (only|assembly)",
         "replacement (headband|pads|cushions)",
         "(ear ?)?pads? only",
-        "cushions? only"
+        "cushions? only",
+        "qc ?(15|20|25|30|35|45)\\b",
+        "\\bqc ?sc\\b",
+        "quietcontrol",
+        "\\bqc\\b(?!.*ultra)",
+        "\\bnc ?700\\b"
       ],
       "models": [
         {
@@ -303,6 +314,13 @@
         "case only"
       ],
       "models": [
+        {
+          "name": "Dyson Supersonic (older HD01-HD03)",
+          "match": "hd ?0[1-3]\\b",
+          "strong": 90,
+          "typical": 60,
+          "note": "Older model: resells lower than the HD07/HD08"
+        },
         {
           "name": "Dyson Supersonic",
           "match": "supersonic",
@@ -466,7 +484,21 @@
       "camera fault",
       "camera issue",
       "no face id",
-      "fingerprint not"
+      "fingerprint not",
+      "chinese",
+      "china",
+      "cn version",
+      "cn rom",
+      "coloros",
+      "import"
     ]
-  }
+  },
+  "junk_patterns": [
+    "\\bread\\W*$",
+    "\\bsee (notes?|desc\\w*|below|info)\\b",
+    "\\b(for|compatible with|fits|suits)\\b.{0,15}\\b(meta|oculus|quest|sony|bose|sennheiser|momentum|steam deck|valve|dyson|supersonic|samsung|galaxy|oneplus)\\b",
+    "(?<!with )(?<!and )(?<!all )\\baccessor(y|ies)\\b",
+    "\\bpads?\\b",
+    "\\bstrap\\b"
+  ]
 }

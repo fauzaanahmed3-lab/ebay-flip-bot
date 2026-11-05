@@ -36,6 +36,7 @@ PACK = CONFIG["packaging_cost"]
 def norm(text: str) -> str:
     """Lowercase and tidy so 'WH-1000 XM 6', 'wh1000xm6' and 'XM6' all contain 'xm6'."""
     t = (text or "").lower().replace("-", " ").replace("_", " ")
+    t = t.replace("quietcomfort", "qc")
     t = re.sub(r"\b(xm|gen|qc)\s+(\d)", r"\1\2", t)          # "xm 6" -> "xm6", "gen 2" -> "gen2"
     t = re.sub(r"(\d)\s+(gb|tb)\b", r"\1\2", t)               # "512 gb" -> "512gb"
     return re.sub(r"\s+", " ", t).strip()
@@ -107,7 +108,7 @@ def triage(cat: dict, item: dict) -> dict | None:
         return None
 
     junk = CONFIG["junk"] + (CONFIG["phone_rules"]["junk"] if cat.get("phone") else [])
-    if junk_word(junk, t) or any_match(cat["wrong"], t):                # stage 3: hard reject
+    if junk_word(junk, t) or any_match(cat["wrong"] + CONFIG.get("junk_patterns", []), t):   # stage 3: hard reject
         return None
     if cat.get("require") and not all(w in t for w in cat["require"]):
         return None
@@ -230,8 +231,10 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
         rating = "HOT"
         notes.insert(0, "Profitable even at an average sale price, trusted seller"
                      + (", fast-selling model." if fast_seller else "."))
-    elif lane == "UNCONFIRMED" or not trusted:
+    elif lane == "UNCONFIRMED" or not trusted or safe_profit < need / 2:
         rating = "CHECK"
+        if safe_profit < need / 2 and trusted and lane != "UNCONFIRMED":
+            notes.append(f"Thin margin unless it sells well: ~£{safe_profit:.0f} at an average price.")
     else:
         rating = "SOLID"
 
@@ -410,11 +413,12 @@ def main() -> int:
     results, lookups = [], 0
     for cat, c in fresh:
         details = None
-        if lookups < CONFIG["max_detail_lookups"]:
-            details = ebay_item(token, c["item_id"])
-            lookups += 1
-        elif c["lane"] == "VAGUE":
-            continue                                    # vague ones need confirming; try next run
+        if lookups >= CONFIG["max_detail_lookups"]:
+            continue                                    # never alert unchecked listings; they're picked up next run
+        details = ebay_item(token, c["item_id"])
+        lookups += 1
+        if details is None:
+            continue
         row = score(cat, c, details)
         if row:
             results.append(row)
