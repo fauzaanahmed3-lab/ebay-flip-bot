@@ -313,6 +313,36 @@ def ebay_item(token: str, item_id: str) -> dict | None:
     return r.json() if r.ok else None
 
 
+def track_outcomes(token: str) -> None:
+    """Feedback loop: re-check a few earlier alerts each run and record when they disappear (sold or ended)."""
+    n = CONFIG.get("track_per_run", 5)
+    if not n or DRY_RUN:
+        return
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    hour_ago = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+    rows = sb_get({"select": "item_id,first_seen", "status": "neq.rejected", "verdict": "in.(DEAL,OFFER)",
+                   "outcome": "is.null", "and": f"(first_seen.gte.{week_ago},first_seen.lte.{hour_ago})",
+                   "order": "last_checked.asc.nullsfirst", "limit": str(n)})
+    now = datetime.now(timezone.utc).isoformat()
+    for row in rows:
+        r = requests.get(f"{EBAY_API}/buy/browse/v1/item/{row['item_id']}", headers=ebay_headers(token), timeout=20)
+        patch = {"last_checked": now}
+        if r.status_code == 404:
+            patch.update(outcome="gone", gone_at=now)          # sold or ended since the last check
+        elif r.ok:
+            d = r.json()
+            if any(a.get("estimatedAvailabilityStatus") == "OUT_OF_STOCK" for a in d.get("estimatedAvailabilities") or []):
+                patch.update(outcome="gone", gone_at=now)
+            else:
+                patch["current_price"] = float((d.get("price") or {}).get("value") or 0) or None
+                if row["first_seen"] < (datetime.now(timezone.utc) - timedelta(days=6, hours=23)).isoformat():
+                    patch["outcome"] = "unsold_7d"
+        else:
+            continue
+        requests.patch(f"{os.environ['SUPABASE_URL']}/rest/v1/{TABLE}", headers=sb_headers(),
+                       params={"item_id": f"eq.{row['item_id']}"}, json=patch, timeout=20)
+
+
 # ---------- Supabase ----------
 
 def sb_headers():
@@ -479,6 +509,10 @@ def main() -> int:
             print(f"Discord failed for {row['item_id']}: {e}", file=sys.stderr)
             failed.append(row["item_id"])
     sb_set_status(failed, "retry")                    # picked up again on the next run
+    try:
+        track_outcomes(token)
+    except requests.RequestException as e:
+        print(f"Outcome tracking skipped: {e}", file=sys.stderr)
     return 0
 
 

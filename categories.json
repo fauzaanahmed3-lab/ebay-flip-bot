@@ -906,5 +906,6 @@
  "trusted_min_feedback": 10,
  "trusted_min_pct": 98,
  "alert_gap_sec": 55,
- "alert_window_sec": 300
+ "alert_window_sec": 300,
+ "track_per_run": 5
 }
