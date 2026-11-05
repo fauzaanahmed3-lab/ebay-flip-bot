@@ -155,3 +155,27 @@ check4("offer never suggests paying over £500", (r["verdict"], r["suggested_off
 r = run("supersonic", item("Dyson Supersonic Hair Dryer Anthracite/Fuchsia With Accessories", 64.15, fb=929), details())
 check4("thin margin (~£8 at average) is CHECK, not SOLID", r["rating"], "CHECK")
 print(f"third review: {sum(R4)}/{len(R4)} passed")
+
+# ---- new categories (5 Nov market research) ----
+R5 = []
+def check5(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R5.append(ok)
+
+r = run("quest3s", item("Meta Quest 3S 128GB with controllers", 140, fb=200), details())
+check5("Quest 3S deal found (was rejected before)", (r["variant"], r["verdict"]), ("Quest 3S 128GB", "DEAL"))
+check5("Quest 3 is not mistaken for a 3S", s.triage(CATS["quest3s"], item("Meta Quest 3 128GB", 140)), None)
+r = run("switcholed", item("Nintendo Switch OLED White console with dock and joycons", 115, fb=200), details())
+check5("Switch OLED deal found", (r["variant"], r["verdict"]), ("Switch OLED", "DEAL"))
+check5("Switch OLED tablet only rejected", s.triage(CATS["switcholed"], item("Nintendo Switch OLED console only", 90)), None)
+check5("Switch Lite rejected", s.triage(CATS["switcholed"], item("Nintendo Switch Lite OLED screen", 60)), None)
+r = run("switch2", item("Nintendo Switch 2 Console Boxed", 280, fb=200), details())
+check5("Switch 2 deal found", r["verdict"], "DEAL")
+check5("case for Switch 2 rejected", s.triage(CATS["switch2"], item("Hard case for Nintendo Switch 2", 20)), None)
+r = run("osmo3", item("DJI Osmo Pocket 3 Creator Combo", 250, fb=200), details())
+check5("Osmo Pocket 3 Creator Combo priced as combo", r["variant"], "Osmo Pocket 3 Creator Combo")
+check5("filters for Osmo rejected", s.triage(CATS["osmo3"], item("ND filters for DJI Osmo Pocket 3", 25)), None)
+r = run("quest3", item("Meta Quest 3 512GB", 330, offer=True, fb=200), details())
+check5("20% offer zone catches a listing ~15% over target", r["verdict"], "OFFER")
+print(f"new categories: {sum(R5)}/{len(R5)} passed")

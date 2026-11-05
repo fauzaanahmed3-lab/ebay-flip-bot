@@ -380,9 +380,10 @@ def discord_alert(row: dict) -> None:
     }
     if row.get("image_url"):
         embed["thumbnail"] = {"url": row["image_url"]}
-    payload = {"embeds": [embed], "allowed_mentions": {"parse": ["everyone"] if key == "HOT" else []}}
-    if key == "HOT":
-        payload["content"] = "@everyone 🔥 Hot one, act fast"
+    ping = key == "HOT" or (row["verdict"] == "DEAL" and row["rating"] == "SOLID")   # only good deals buzz your phone
+    payload = {"embeds": [embed], "allowed_mentions": {"parse": ["everyone"] if ping else []}}
+    if ping:
+        payload["content"] = "@everyone 🔥 Hot one, act fast" if key == "HOT" else "@everyone 🟢 Good deal"
     post_discord(payload)
 
 

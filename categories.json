@@ -1,6 +1,6 @@
 {
   "packaging_cost": 1,
-  "offer_zone_pct": 0.1,
+  "offer_zone_pct": 0.2,
   "max_detail_lookups": 10,
   "unconfirmed_extra_margin": 30,
   "hot_ratio": 1.5,
@@ -59,7 +59,7 @@
         "video game"
       ],
       "price_min": 120,
-      "price_max": 320,
+      "price_max": 344,
       "post_out": 8,
       "family": "(meta|oculus).*(quest|vr|headset)|quest.*(vr|headset)",
       "wrong": [
@@ -107,7 +107,7 @@
         "video game"
       ],
       "price_min": 250,
-      "price_max": 500,
+      "price_max": 534,
       "post_out": 9,
       "family": "steam ?deck",
       "wrong": [
@@ -149,7 +149,7 @@
         "headphone"
       ],
       "price_min": 50,
-      "price_max": 210,
+      "price_max": 220,
       "post_out": 6,
       "family": "sony.*(headphone|noise cancel|over.?ear|wireless)",
       "wrong": [
@@ -203,7 +203,7 @@
         "headphone"
       ],
       "price_min": 70,
-      "price_max": 230,
+      "price_max": 244,
       "post_out": 6,
       "family": "bose.*(headphone|noise cancel|over.?ear|quietcomfort|qc)",
       "wrong": [
@@ -254,7 +254,7 @@
         "headphone"
       ],
       "price_min": 50,
-      "price_max": 95,
+      "price_max": 100,
       "post_out": 6,
       "family": "sennheiser.*(momentum|headphone)",
       "wrong": [
@@ -294,7 +294,7 @@
         "hair"
       ],
       "price_min": 35,
-      "price_max": 75,
+      "price_max": 81,
       "post_out": 7,
       "family": "dyson.*(hair|dryer)",
       "wrong": [
@@ -349,7 +349,7 @@
         "phone"
       ],
       "price_min": 250,
-      "price_max": 550,
+      "price_max": 600,
       "post_out": 6,
       "family": "oneplus",
       "wrong": [
@@ -410,7 +410,7 @@
         "phone"
       ],
       "price_min": 300,
-      "price_max": 550,
+      "price_max": 600,
       "post_out": 6,
       "family": "samsung|galaxy",
       "wrong": [
@@ -443,6 +443,179 @@
           "typical": 507
         }
       ]
+    },
+    {
+      "id": "quest3s",
+      "label": "Meta Quest 3S",
+      "enabled": true,
+      "weekly_sales": 23,
+      "queries": [
+        "meta quest 3s"
+      ],
+      "category_hint": [
+        "virtual reality",
+        "vr",
+        "video game"
+      ],
+      "price_min": 90,
+      "post_out": 8,
+      "family": "quest ?3s",
+      "wrong": [
+        "quest ?3\\b(?!s)",
+        "quest ?2\\b",
+        "quest ?pro",
+        "controllers? only",
+        "headset only",
+        "no controllers",
+        "without controllers",
+        "missing controller"
+      ],
+      "wrong_specs": [
+        "quest ?3\\b(?!s)"
+      ],
+      "models": [
+        {
+          "name": "Quest 3S 256GB",
+          "match": "quest ?3s.*256|256.*quest ?3s",
+          "strong": 235,
+          "typical": 205
+        },
+        {
+          "name": "Quest 3S 128GB",
+          "match": "quest ?3s",
+          "strong": 205,
+          "typical": 175,
+          "note": "Storage not stated: priced as 128GB"
+        }
+      ],
+      "price_max": 212
+    },
+    {
+      "id": "switcholed",
+      "label": "Nintendo Switch OLED",
+      "enabled": true,
+      "weekly_sales": 24,
+      "queries": [
+        "nintendo switch oled"
+      ],
+      "category_hint": [
+        "console",
+        "video game"
+      ],
+      "price_min": 60,
+      "post_out": 8,
+      "family": "switch.*oled|oled.*switch",
+      "wrong": [
+        "\\blite\\b",
+        "switch ?2\\b",
+        "console only",
+        "tablet only",
+        "screen only",
+        "no dock",
+        "without dock",
+        "no joy ?cons?",
+        "joy ?cons? only",
+        "dock only",
+        "banned",
+        "\\bgames? only"
+      ],
+      "wrong_specs": [
+        "\\blite\\b"
+      ],
+      "models": [
+        {
+          "name": "Switch OLED",
+          "match": "oled",
+          "strong": 180,
+          "typical": 146,
+          "note": "Test Joy-Cons for drift and check the dock works"
+        }
+      ],
+      "price_max": 146
+    },
+    {
+      "id": "switch2",
+      "label": "Nintendo Switch 2",
+      "enabled": true,
+      "weekly_sales": 16,
+      "queries": [
+        "nintendo switch 2 console"
+      ],
+      "category_hint": [
+        "console",
+        "video game"
+      ],
+      "price_min": 200,
+      "post_out": 8,
+      "family": "switch ?2\\b",
+      "wrong": [
+        "\\blite\\b",
+        "\\boled\\b",
+        "console only",
+        "tablet only",
+        "no dock",
+        "without dock",
+        "dock only",
+        "joy ?cons? only",
+        "\\bgames? only",
+        "mario kart only",
+        "amiibo",
+        "banned"
+      ],
+      "wrong_specs": [],
+      "models": [
+        {
+          "name": "Switch 2",
+          "match": "switch ?2\\b",
+          "strong": 345,
+          "typical": 320,
+          "note": "New model: check it isn't linked to the seller's account"
+        }
+      ],
+      "price_max": 344
+    },
+    {
+      "id": "osmo3",
+      "label": "DJI Osmo Pocket 3",
+      "enabled": true,
+      "weekly_sales": 14,
+      "queries": [
+        "dji osmo pocket 3"
+      ],
+      "category_hint": [
+        "camera",
+        "camcorder",
+        "video"
+      ],
+      "price_min": 120,
+      "post_out": 6,
+      "family": "pocket ?3",
+      "wrong": [
+        "\\bfilters?\\b",
+        "\\bmount\\b",
+        "handle only",
+        "\\bcase\\b(?! included)",
+        "osmo pocket ?2",
+        "\\bpocket ?2\\b",
+        "lens only"
+      ],
+      "wrong_specs": [],
+      "models": [
+        {
+          "name": "Osmo Pocket 3 Creator Combo",
+          "match": "creator",
+          "strong": 320,
+          "typical": 285
+        },
+        {
+          "name": "Osmo Pocket 3",
+          "match": "pocket ?3",
+          "strong": 265,
+          "typical": 235,
+          "note": "Check the gimbal moves freely and the screen rotates"
+        }
+      ],
+      "price_max": 316
     }
   ],
   "phone_rules": {
@@ -476,7 +649,7 @@
   "junk_patterns": [
     "\\bread\\W*$",
     "\\bsee (notes?|desc\\w*|below|info)\\b",
-    "\\b(for|compatible with|fits|suits)\\b.{0,15}\\b(meta|oculus|quest|sony|bose|sennheiser|momentum|steam deck|valve|dyson|supersonic|samsung|galaxy|oneplus)\\b",
+    "\\b(for|compatible with|fits|suits)\\b.{0,15}\\b(meta|oculus|quest|sony|bose|sennheiser|momentum|steam deck|valve|dyson|supersonic|samsung|galaxy|oneplus|nintendo|switch|dji|osmo)\\b",
     "(?<!with )(?<!and )(?<!all )\\baccessor(y|ies)\\b",
     "\\bpads?\\b",
     "\\bstrap\\b"
