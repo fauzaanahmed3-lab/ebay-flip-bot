@@ -223,5 +223,5 @@ check7("Series X not mistaken for Series S", s.triage(CATS["xboxss"], item("Xbox
 check7("Xbox One S rejected", s.triage(CATS["xboxss"], item("Xbox One S 1TB console Series S/X controller", 140, fb=30)), None)
 check7("expansion card rejected", s.triage(CATS["xboxss"], item("Seagate expansion card for Xbox Series S 1TB", 120, fb=30)), None)
 check7("offer zone is 12%", s.CONFIG["offer_zone_pct"], 0.12)
-check7("alerts spread over <= 7 minutes", s.CONFIG["alert_window_sec"] <= 420, True)
+check7("alerts spread over <= 5 minutes (fits the 8-minute job limit)", s.CONFIG["alert_window_sec"] <= 300, True)
 print(f"round 3: {sum(R7)}/{len(R7)} passed")

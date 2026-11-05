@@ -846,5 +846,5 @@
  "trusted_min_feedback": 10,
  "trusted_min_pct": 98,
  "alert_gap_sec": 55,
- "alert_window_sec": 420
+ "alert_window_sec": 300
 }
