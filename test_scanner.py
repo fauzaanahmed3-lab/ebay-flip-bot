@@ -178,8 +178,8 @@ check5("case for Switch 2 rejected", s.triage(CATS["switch2"], item("Hard case f
 r = run("osmo3", item("DJI Osmo Pocket 3 Creator Combo", 250, fb=200), details())
 check5("Osmo Pocket 3 Creator Combo priced as combo", r["variant"], "Osmo Pocket 3 Creator Combo")
 check5("filters for Osmo rejected", s.triage(CATS["osmo3"], item("ND filters for DJI Osmo Pocket 3", 25)), None)
-r = run("quest3", item("Meta Quest 3 512GB", 315, offer=True, fb=200), details())
-check5("20% offer zone catches a listing ~15% over target", r["verdict"], "OFFER")
+r = run("quest3", item("Meta Quest 3 512GB", 295, offer=True, fb=200), details())
+check5("12% offer zone catches a listing ~8% over target", r["verdict"], "OFFER")
 print(f"new categories: {sum(R5)}/{len(R5)} passed")
 
 # ---- research round 2 (5 Nov): consoles, buyer fee, seller rules ----
@@ -210,3 +210,18 @@ check6("phones and Switch OLED switched off", [CATS[k]["enabled"] for k in ("one
 r = run("quest3", item("Meta Quest 3 VR headset with controllers", 205, fb=200), details())
 check6("Quest 3 without storage priced safely + tagged", r["variant"], "Quest 3 · 128GB or storage not stated")
 print(f"research round 2: {sum(R6)}/{len(R6)} passed")
+
+# ---- round 3 (5 Nov): Series S, drip feed ----
+R7 = []
+def check7(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R7.append(ok)
+r = run("xboxss", item("Xbox Series S 512GB white with controller", 150, 5, fb=30), details())
+check7("Series S deal found", (r["variant"], r["verdict"]), ("Series S · 512GB or not stated", "DEAL"))
+check7("Series X not mistaken for Series S", s.triage(CATS["xboxss"], item("Xbox Series X 1TB", 150, fb=30)), None)
+check7("Xbox One S rejected", s.triage(CATS["xboxss"], item("Xbox One S 1TB console Series S/X controller", 140, fb=30)), None)
+check7("expansion card rejected", s.triage(CATS["xboxss"], item("Seagate expansion card for Xbox Series S 1TB", 120, fb=30)), None)
+check7("offer zone is 12%", s.CONFIG["offer_zone_pct"], 0.12)
+check7("alerts spread over <= 7 minutes", s.CONFIG["alert_window_sec"] <= 420, True)
+print(f"round 3: {sum(R7)}/{len(R7)} passed")

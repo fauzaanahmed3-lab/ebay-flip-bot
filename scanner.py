@@ -457,13 +457,19 @@ def main() -> int:
         print(f"First run: remembered {len(saved)} existing listings without alerting.")
         return 0
     failed = []
-    for row in saved:
-        if row["verdict"] != "REJECT":
-            try:
-                discord_alert(row)
-            except requests.RequestException as e:
-                print(f"Discord failed for {row['item_id']}: {e}", file=sys.stderr)
-                failed.append(row["item_id"])
+    alerts = [r for r in saved if r["verdict"] != "REJECT"]
+    rank = {"HOT": 0, "SOLID": 1}
+    alerts.sort(key=lambda r: (rank.get(r.get("rating"), 2), r["verdict"] != "DEAL", -float(r.get("profit") or 0)))
+    # drip-feed: best first, then about one a minute, all done before the next 10-minute scan
+    gap = min(CONFIG.get("alert_gap_sec", 55), CONFIG.get("alert_window_sec", 480) / max(1, len(alerts)))
+    for i, row in enumerate(alerts):
+        if i:
+            time.sleep(gap)
+        try:
+            discord_alert(row)
+        except requests.RequestException as e:
+            print(f"Discord failed for {row['item_id']}: {e}", file=sys.stderr)
+            failed.append(row["item_id"])
     sb_set_status(failed, "retry")                    # picked up again on the next run
     return 0
 

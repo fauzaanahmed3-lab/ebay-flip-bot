@@ -1,6 +1,6 @@
 {
  "packaging_cost": 1,
- "offer_zone_pct": 0.2,
+ "offer_zone_pct": 0.12,
  "max_detail_lookups": 10,
  "unconfirmed_extra_margin": 30,
  "hot_ratio": 1.5,
@@ -247,7 +247,7 @@
   {
    "id": "momentum4",
    "label": "Sennheiser Momentum 4",
-   "enabled": true,
+   "enabled": false,
    "weekly_sales": 12,
    "queries": [
     "sennheiser momentum 4"
@@ -287,7 +287,7 @@
   {
    "id": "supersonic",
    "label": "Dyson Supersonic",
-   "enabled": true,
+   "enabled": false,
    "weekly_sales": 4,
    "queries": [
     "dyson supersonic"
@@ -743,6 +743,65 @@
     }
    ],
    "price_max": 496
+  },
+  {
+   "id": "xboxss",
+   "label": "Xbox Series S",
+   "enabled": true,
+   "weekly_sales": 450,
+   "queries": [
+    "xbox series s console"
+   ],
+   "category_hint": [
+    "console",
+    "video game"
+   ],
+   "price_min": 110,
+   "post_out": 10,
+   "family": "series ?s\\b",
+   "wrong": [
+    "controllers? only",
+    "pads? only",
+    "drive only",
+    "disc drive\\b(?!.*console)",
+    "\\bstand\\b(?! included)",
+    "\\bcase\\b(?! included)",
+    "\\bskin\\b",
+    "cover plates?",
+    "faceplates?",
+    "\\bgames? only",
+    "no controller",
+    "without controller",
+    "\\bbanned\\b",
+    "console only(?=.*no)",
+    "digital key",
+    "\\bcode\\b",
+    "\\b360\\b",
+    "series ?x\\b",
+    "xbox one\\b",
+    "\\bone s\\b",
+    "expansion card",
+    "storage card"
+   ],
+   "wrong_specs": [
+    "series ?x\\b"
+   ],
+   "models": [
+    {
+     "name": "Series S · 1TB",
+     "match": "1 ?tb",
+     "strong": 265,
+     "typical": 255,
+     "note": "Priced like the 512GB to be safe; the 1TB usually sells a bit higher."
+    },
+    {
+     "name": "Series S · 512GB or not stated",
+     "match": "series ?s\\b",
+     "strong": 265,
+     "typical": 255
+    }
+   ],
+   "price_max": 245
   }
  ],
  "phone_rules": {
@@ -785,5 +844,7 @@
  "seller_min_feedback": 1,
  "seller_min_pct": 97,
  "trusted_min_feedback": 10,
- "trusted_min_pct": 98
+ "trusted_min_pct": 98,
+ "alert_gap_sec": 55,
+ "alert_window_sec": 420
 }
