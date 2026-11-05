@@ -88,6 +88,12 @@ def _buy_target(strong: float, post_out: float) -> float:
     return round(net - 100, 2) if net - 100 >= 400 else 399.99
 
 
+def buyer_fee(price: float) -> float:
+    """eBay UK Buyer Protection Fee paid on private-seller items: 10p + 7% to £20, 4% to £300, 2% to £4,000."""
+    p = max(price, 0)
+    return round(0.10 + 0.07 * min(p, 20) + 0.04 * max(0, min(p, 300) - 20) + 0.02 * max(0, min(p, 4000) - 300), 2)
+
+
 def model_for(cat: dict, text: str) -> dict | None:
     return next((m for m in cat["models"] if re.search(m["match"], text)), None)
 
@@ -105,7 +111,8 @@ def triage(cat: dict, item: dict) -> dict | None:
     ship_opts = item.get("shippingOptions") or []
     ship_known = bool(ship_opts and "shippingCost" in ship_opts[0])
     ship = float(ship_opts[0]["shippingCost"].get("value", 0) or 0) if ship_known else 0.0
-    all_in = round(price + ship, 2)
+    fee = buyer_fee(price)                       # assume a private seller until the details say business
+    all_in = round(price + ship + fee, 2)
 
     best_target = max(buy_target(m["strong"], cat["post_out"]) for m in cat["models"])
     if all_in > best_target * (1 + CONFIG["offer_zone_pct"]):           # stage 2: price gate
@@ -120,6 +127,8 @@ def triage(cat: dict, item: dict) -> dict | None:
     seller = item.get("seller", {})
     fb = int(seller.get("feedbackScore", 0) or 0)
     pct = float(seller.get("feedbackPercentage", 0) or 0)
+    if fb < CONFIG["seller_min_feedback"] or pct < CONFIG["seller_min_pct"]:
+        return None                                                      # brand-new or poorly rated seller
     if cat.get("phone") and (fb < CONFIG["phone_rules"]["min_feedback"] or pct < CONFIG["phone_rules"]["min_pct"]):
         return None                                                      # phones: strict sellers only
 
@@ -143,7 +152,7 @@ def triage(cat: dict, item: dict) -> dict | None:
     return {
         "item_id": item["itemId"], "category": cat["id"], "title": title[:200],
         "url": item.get("itemWebUrl"), "image_url": (item.get("image") or {}).get("imageUrl"),
-        "price": price, "shipping": ship, "all_in": all_in,
+        "price": price, "shipping": ship, "all_in": all_in, "fee": fee,
         "best_offer": best_offer, "ship_known": ship_known,
         "seller": None, "seller_feedback": fb, "seller_pct": pct,
         "listed_at": item.get("itemCreationDate"),
@@ -154,7 +163,7 @@ def triage(cat: dict, item: dict) -> dict | None:
 
 # ---------- stage 5: confirm with item details, then score ----------
 
-DROP = ("best_offer", "model", "condition", "ship_known")          # working fields, not stored
+DROP = ("best_offer", "model", "condition", "ship_known", "fee")          # working fields, not stored
 
 def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
     notes = []
@@ -168,6 +177,8 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
         if any_match(cat.get("wrong_specs", []), aspects) or damage_in(details.get("conditionDescription", "")):
             return None                                       # specifics reveal wrong model / damage
 
+    if details and (details.get("seller") or {}).get("sellerAccountType") == "BUSINESS" and cand.get("fee"):
+        cand = {**cand, "all_in": round(cand["all_in"] - cand["fee"], 2), "fee": 0}   # business sellers: no buyer fee
     lane = cand["lane"]
     model = next((m for m in cat["models"] if m["name"] == cand["model"]), None)
     if lane == "VAGUE":
@@ -193,22 +204,25 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
         verdict = "DEAL"
     elif cand["best_offer"] and all_in <= target * (1 + CONFIG["offer_zone_pct"]):
         verdict = "OFFER"
-        suggested_offer = int(target - ship)
+        fee_rate = 1 if cand.get("fee") else 0
+        suggested_offer = int(target - ship - fee_rate * buyer_fee(target - ship))   # offer + postage + fee = target
     else:
         return None
 
-    pay = suggested_offer + ship if suggested_offer else all_in
+    pay = (suggested_offer + ship + (buyer_fee(suggested_offer) if cand.get("fee") else 0)) if suggested_offer else all_in
     profit = round(model["strong"] - cat["post_out"] - PACK - pay, 2)
     safe_profit = round(model.get("typical", model["strong"]) - cat["post_out"] - PACK - pay, 2)
     need = required_profit(pay)
 
     # ---- plain-English notes ----
     fb, pct = cand["seller_feedback"], cand["seller_pct"]
-    trusted = fb >= 10 and pct >= 97
+    trusted = fb >= CONFIG["trusted_min_feedback"] and pct >= CONFIG["trusted_min_pct"]
     if fb < 10:
         notes.append(f"Seller has very little feedback ({fb}). Higher risk.")
-    elif pct < 97:
+    elif pct < CONFIG["trusted_min_pct"]:
         notes.append(f"Seller feedback is only {pct}%.")
+    if cand.get("fee"):
+        notes.append(f"All-in includes ~£{cand['fee']:.0f} eBay buyer protection fee (private seller).")
     if photos is not None and photos < 3:
         notes.append(f"Only {photos} photo(s). Ask for more before buying.")
     if not cand.get("ship_known", True):
