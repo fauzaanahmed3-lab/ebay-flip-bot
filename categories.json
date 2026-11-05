@@ -349,7 +349,7 @@
         "phone"
       ],
       "price_min": 250,
-      "price_max": 670,
+      "price_max": 550,
       "post_out": 6,
       "family": "oneplus",
       "wrong": [
@@ -398,12 +398,11 @@
     },
     {
       "id": "samsung",
-      "label": "Samsung Galaxy S25/S26 Ultra",
+      "label": "Samsung Galaxy S25 Ultra",
       "enabled": true,
       "phone": true,
       "weekly_sales": 45,
       "queries": [
-        "samsung galaxy s26 ultra",
         "samsung galaxy s25 ultra"
       ],
       "category_hint": [
@@ -411,7 +410,7 @@
         "phone"
       ],
       "price_min": 300,
-      "price_max": 960,
+      "price_max": 550,
       "post_out": 6,
       "family": "samsung|galaxy",
       "wrong": [
@@ -430,25 +429,6 @@
         "\\bfe\\b"
       ],
       "models": [
-        {
-          "name": "Galaxy S26 Ultra 1TB",
-          "match": "s26 ?ultra.*1 ?tb|1 ?tb.*s26 ?ultra",
-          "strong": 985,
-          "typical": 925
-        },
-        {
-          "name": "Galaxy S26 Ultra 512GB",
-          "match": "s26 ?ultra.*512|512.*s26 ?ultra",
-          "strong": 815,
-          "typical": 751
-        },
-        {
-          "name": "Galaxy S26 Ultra 256GB",
-          "match": "s26 ?ultra",
-          "strong": 720,
-          "note": "Storage not stated: priced as 256GB",
-          "typical": 685
-        },
         {
           "name": "Galaxy S25 Ultra 512GB",
           "match": "s25 ?ultra.*(512|1 ?tb)|(512|1 ?tb).*s25 ?ultra",
@@ -500,5 +480,6 @@
     "(?<!with )(?<!and )(?<!all )\\baccessor(y|ies)\\b",
     "\\bpads?\\b",
     "\\bstrap\\b"
-  ]
+  ],
+  "max_buy": 500
 }

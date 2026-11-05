@@ -78,6 +78,10 @@ def required_profit(all_in: float) -> int:
 
 
 def buy_target(strong: float, post_out: float) -> float:
+    return min(_buy_target(strong, post_out), CONFIG.get("max_buy", 10**6))   # never spend more than max_buy
+
+
+def _buy_target(strong: float, post_out: float) -> float:
     net = strong - post_out - PACK
     if net - 50 < 400:
         return round(net - 50, 2)

@@ -30,6 +30,7 @@ def check(name, got, want):
 
 check("normalise 'WH-1000 XM 6'", "xm6" in s.norm("Sony WH-1000 XM 6"), True)
 check("steam deck target uses £100 rule", s.buy_target(530, 9), 420)
+check("target never above £500", s.buy_target(985, 6), 500)
 
 r = run("quest3", item("Meta Quest 3 512GB with controllers", 240, fb=250), details())
 check("quest 512 exact + big margin = HOT", (r["lane"], r["verdict"], r["rating"], r["variant"]), ("EXACT", "DEAL", "HOT", "Quest 3 512GB"))
@@ -90,8 +91,8 @@ check2("'no scratches' is not junk", s.junk_word(["scratched", "scratch"], "no s
 check2("'missing charger' is junk", s.junk_word(["missing"], "missing charger"), "missing")
 check2("quest with bobovr headband no longer rejected", s.triage(CATS["quest3"], item("Meta Quest 3 128GB with bobovr headband", 200))["lane"], "EXACT")
 check2("sony headband-only part rejected", s.triage(CATS["sony"], item("Sony WH-1000XM6 headband only", 60)), None)
-r = run("samsung", item("Samsung Galaxy S26 Ultra 512GB unlocked", 690, fb=300), details())
-check2("S26 Ultra 512 deal needs £100", (r["variant"], r["required_profit"], r["profit"] >= 100), ("Galaxy S26 Ultra 512GB", 100, True))
+r = run("samsung", item("Samsung Galaxy S25 Ultra 512GB unlocked", 440, fb=300), details())
+check2("S25 Ultra 512 deal needs £100", (r["variant"], r["required_profit"], r["profit"] >= 100), ("Galaxy S25 Ultra 512GB", 100, True))
 check2("Galaxy FE rejected", s.triage(CATS["samsung"], item("Samsung Galaxy S25 FE", 300, fb=300)), None)
 r = run("oneplus", item("OnePlus 15 256GB", 500, fb=200), details())
 check2("OnePlus 15 untagged = 256 + IMEI note", (r["variant"], "IMEI" in r["notes"]), ("OnePlus 15 256GB", True))
@@ -147,8 +148,10 @@ check4("Bose earbuds caught by details",
        run("bose", item("Bose QuietComfort Ultra Noise Cancelling Bluetooth Wireless 1st Gen- Moonstone", 119.62, fb=1023),
            details({"Type": "Earbud (In Ear)"})), None)
 check4("'with accessories' is still allowed", s.triage(CATS["supersonic"], item("Dyson Supersonic Hair Dryer Anthracite/Fuchsia With Accessories", 60)) is not None, True)
-check4("genuine OnePlus 15 512 offer still found",
-       run("oneplus", item("OnePlus 15 CPH2747 512GB 16GB RAM OxygenOS White", 625.7, offer=True, fb=2170), details())["verdict"], "OFFER")
+check4("over-£500 phone ignored (spending cap)",
+       s.triage(CATS["oneplus"], item("OnePlus 15 CPH2747 512GB 16GB RAM OxygenOS White", 625.7, offer=True, fb=2170)), None)
+r = run("oneplus", item("OnePlus 15 512GB OxygenOS White", 530, offer=True, fb=2170), details())
+check4("offer never suggests paying over £500", (r["verdict"], r["suggested_offer"] <= 500), ("OFFER", True))
 r = run("supersonic", item("Dyson Supersonic Hair Dryer Anthracite/Fuchsia With Accessories", 64.15, fb=929), details())
 check4("thin margin (~£8 at average) is CHECK, not SOLID", r["rating"], "CHECK")
 print(f"third review: {sum(R4)}/{len(R4)} passed")
