@@ -93,7 +93,8 @@
    "wrong_specs": [
     "quest ?3s\\b",
     "quest ?2\\b"
-   ]
+   ],
+   "require_any": "\\bheadset\\b|\\bcontrollers?\\b|\\b(128|256|512) ?gb\\b|\\bstandalone\\b|\\bboxed\\b|\\bbundle\\b|\\bconsole\\b|\\bmixed reality\\b"
   },
   {
    "id": "steamdeck",
@@ -490,7 +491,8 @@
      "note": "Storage not stated: priced as 128GB"
     }
    ],
-   "price_max": 212
+   "price_max": 212,
+   "require_any": "\\bheadset\\b|\\bcontrollers?\\b|\\b(128|256|512) ?gb\\b|\\bstandalone\\b|\\bboxed\\b|\\bbundle\\b|\\bconsole\\b|\\bmixed reality\\b"
   },
   {
    "id": "switcholed",
@@ -893,7 +895,10 @@
   "\\b(for|compatible with|fits|suits)\\b.{0,15}\\b(meta|oculus|quest|sony|bose|sennheiser|momentum|steam deck|valve|dyson|supersonic|samsung|galaxy|oneplus|nintendo|switch|dji|osmo)\\b",
   "(?<!with )(?<!and )(?<!all )\\baccessor(y|ies)\\b",
   "\\bpads?\\b",
-  "\\bstrap\\b"
+  "\\bstrap\\b",
+  "\\bpower ?banks?\\b",
+  "\\bbattery (pack|strap|head ?strap)\\b",
+  "charging (dock|station|stand|cable)"
  ],
  "max_buy": 500,
  "seller_min_feedback": 1,

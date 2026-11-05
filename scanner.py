@@ -405,6 +405,12 @@ def discord_alert(row: dict) -> None:
 
 # ---------- main ----------
 
+def quiet(row: dict) -> bool:
+    """Thin-margin 'check' items are saved (and can appear in the digest) but not posted live."""
+    need = float(row.get("required_profit") or 50)
+    return row.get("rating") == "CHECK" and float(row.get("safe_profit") or 0) < need / 2
+
+
 def main() -> int:
     token = ebay_token()
     cats = [c for c in CONFIG["categories"] if c.get("enabled") and c["models"]]
@@ -459,7 +465,7 @@ def main() -> int:
         print(f"First run: remembered {len(saved)} existing listings without alerting.")
         return 0
     failed = []
-    alerts = [r for r in saved if r["verdict"] != "REJECT"]
+    alerts = [r for r in saved if r["verdict"] != "REJECT" and not quiet(r)]
     rank = {"HOT": 0, "SOLID": 1}
     alerts.sort(key=lambda r: (rank.get(r.get("rating"), 2), r["verdict"] != "DEAL", -float(r.get("profit") or 0)))
     # drip-feed: best first, then about one a minute, all done before the next 10-minute scan

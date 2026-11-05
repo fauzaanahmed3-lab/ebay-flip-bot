@@ -253,3 +253,18 @@ for cat, title, price in [
 ]:
     check8(f"kept: {title[:45]}", s.triage(CATS[cat], item(title, price, fb=300)) is not None, True)
 print(f"console false positives: {sum(R8)}/{len(R8)} passed")
+
+# ---- 4:25am fixes (5 Nov) ----
+R9 = []
+def check9(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R9.append(ok)
+check9("Quest 3S power bank rejected", s.triage(CATS["quest3s"], item("Meta Quest 3s Power Bank, White,  Adjustable, Usb Charger, Chargers The Vr 100%", 100, fb=300)), None)
+check9("Quest 3 charging dock rejected", s.triage(CATS["quest3"], item("Charging dock station for Meta Quest 3 controllers", 40, fb=300)), None)
+check9("real Quest 3S kept", s.triage(CATS["quest3s"], item("Meta Quest 3S Standalone VR Headset 128GB with Controllers White", 105, fb=300)) is not None, True)
+check9("real Quest 3 kept", s.triage(CATS["quest3"], item("Meta Quest 3 512GB VR headset", 200, fb=300)) is not None, True)
+check9("thin-margin CHECK is quiet", s.quiet({"rating": "CHECK", "safe_profit": 10, "required_profit": 50}), True)
+check9("good CHECK (new seller) still posts", s.quiet({"rating": "CHECK", "safe_profit": 60, "required_profit": 50}), False)
+check9("SOLID never quiet", s.quiet({"rating": "SOLID", "safe_profit": 5, "required_profit": 50}), False)
+print(f"4:25 fixes: {sum(R9)}/{len(R9)} passed")
