@@ -20,6 +20,7 @@ import sys
 import time
 from datetime import timedelta
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from collections import Counter
 from pathlib import Path
 
@@ -31,6 +32,8 @@ EBAY_API = "https://api.ebay.com"
 TABLE = "flip_listings"
 WHY = Counter()          # (category, reason) -> how many listings were dropped for it this run
 LOG: list[str] = []      # lines for the #bot-logs channel
+USAGE = Counter()        # API calls made this run, by 'ebay' or Gemini model name
+LIMITED = Counter()      # Gemini 'free allowance used up' (429) replies this run
 
 
 def _no(cat_id: str, reason: str):
@@ -318,6 +321,7 @@ def ebay_headers(token):
 def ebay_search(token: str, cat: dict, query: str) -> list[dict]:
     filters = ",".join(["buyingOptions:{FIXED_PRICE}", "conditions:{NEW|USED}", "itemLocationCountry:GB",
                         f"price:[{cat['price_min']}..{cat['price_max']}]", "priceCurrency:GBP"])
+    USAGE["ebay"] += 1
     r = requests.get(f"{EBAY_API}/buy/browse/v1/item_summary/search", headers=ebay_headers(token),
                      params={"q": query, "filter": filters, "sort": "newlyListed", "limit": 50}, timeout=20)
     r.raise_for_status()
@@ -325,6 +329,7 @@ def ebay_search(token: str, cat: dict, query: str) -> list[dict]:
 
 
 def ebay_item(token: str, item_id: str) -> dict | None:
+    USAGE["ebay"] += 1
     r = requests.get(f"{EBAY_API}/buy/browse/v1/item/{item_id}", headers=ebay_headers(token), timeout=20)
     return r.json() if r.ok else None
 
@@ -343,6 +348,7 @@ def track_outcomes(token: str) -> None:
     if rows:
         LOG.append(f"📦 Tracker: re-checked {len(rows)} earlier alert(s)")
     for row in rows:
+        USAGE["ebay"] += 1
         r = requests.get(f"{EBAY_API}/buy/browse/v1/item/{row['item_id']}", headers=ebay_headers(token), timeout=20)
         patch = {"last_checked": now}
         if r.status_code == 404:
@@ -416,6 +422,10 @@ def ai_check(cat: dict, row: dict, details: dict) -> tuple[str, str, str]:
                               headers={"x-goog-api-key": key}, json=body, timeout=12)
         except requests.RequestException:
             continue
+        if r.status_code == 429:
+            LIMITED[model] += 1
+        elif r.status_code != 404:
+            USAGE[model] += 1
         if not r.ok:                               # 429 = free allowance used up, 404 = model name not available
             print(f"AI {model}: HTTP {r.status_code}", file=sys.stderr)
             continue
@@ -465,6 +475,83 @@ def save_new(rows: list[dict]) -> list[dict]:
                       json=rows, timeout=20)
     r.raise_for_status()
     return r.json()
+
+
+# ---------- API usage (#api-usage) ----------
+
+PACIFIC, UK = ZoneInfo("America/Los_Angeles"), ZoneInfo("Europe/London")
+USAGE_NAMES = {"gemini-3.5-flash-lite": "Gemini 3.5 Flash-Lite", "gemini-3.1-flash-lite": "Gemini 3.1 Flash-Lite",
+               "gemini-2.5-flash-lite": "Gemini 2.5 Flash-Lite", "ebay": "eBay searches + lookups"}
+
+
+def usage_day(now: datetime | None = None):
+    """Gemini's free daily limits reset at midnight Pacific (08:00 UK), so the bot counts days the same way."""
+    return (now or datetime.now(timezone.utc)).astimezone(PACIFIC).date()
+
+
+def bar(used: int, limit: int, width: int = 12) -> str:
+    filled = min(width, round(width * used / limit)) if limit else 0
+    return "▰" * filled + "▱" * (width - filled)
+
+
+def render_usage(today: dict, week: dict, now: datetime | None = None) -> str:
+    now = now or datetime.now(timezone.utc)
+    reset = datetime.combine(usage_day(now) + timedelta(days=1), datetime.min.time(), PACIFIC)
+    left = reset - now.astimezone(PACIFIC)
+    h, m = int(left.total_seconds() // 3600), int(left.total_seconds() % 3600 // 60)
+    limits = CONFIG.get("usage_limits", {})
+    lines = [f"Resets {reset.astimezone(UK):%H:%M} UK (in {h}h {m}m)", ""]
+    ai_left = 0
+    for name, limit in limits.items():
+        used, hit = today.get(name, (0, 0))
+        lines.append(f"{USAGE_NAMES.get(name, name)}")
+        lines.append(f"{bar(used, limit)} {used:,} / {limit:,} · {max(0, limit - used):,} left"
+                     + (f" · hit limit {hit}x" if hit else ""))
+        if name != "ebay":
+            ai_left += max(0, limit - used)
+        lines.append("")
+    lines.append(f"AI checks left today: ~{ai_left:,}")
+    g7 = sum(v for k, v in week.items() if k != "ebay")
+    lines.append(f"Last 7 days: {g7:,} AI checks · {week.get('ebay', 0):,} eBay calls")
+    return "```\n" + "\n".join(lines) + "\n```" + f"\nUpdated {now.astimezone(UK):%H:%M} UK · counted by the bot, no extra API calls"
+
+
+def report_usage() -> None:
+    """Add this run's calls to the daily totals and refresh the single #api-usage message (edited, never re-posted)."""
+    if DRY_RUN:
+        return
+    base = os.environ["SUPABASE_URL"]
+    day = usage_day()
+    try:
+        if USAGE or LIMITED:
+            rows = [{"name": n, "calls": USAGE.get(n, 0), "limited": LIMITED.get(n, 0)} for n in set(USAGE) | set(LIMITED)]
+            requests.post(f"{base}/rest/v1/rpc/bump_usage", headers=sb_headers(),
+                          json={"p_day": day.isoformat(), "p_rows": rows}, timeout=15).raise_for_status()
+        url = os.getenv("DISCORD_USAGE_WEBHOOK_URL")
+        if not url:
+            return
+        got = requests.get(f"{base}/rest/v1/api_usage", headers=sb_headers(), timeout=15,
+                           params={"select": "day,name,calls,limited", "day": f"gte.{(day - timedelta(days=6)).isoformat()}"}).json()
+        today = {r["name"]: (r["calls"], r["limited"]) for r in got if r["day"] == day.isoformat()}
+        week = Counter()
+        for r in got:
+            week[r["name"]] += r["calls"]
+        payload = {"embeds": [{"title": "📊 API usage today", "description": render_usage(today, week), "color": 0x5865F2}],
+                   "allowed_mentions": {"parse": []}}
+        st = requests.get(f"{base}/rest/v1/bot_state", headers=sb_headers(), timeout=15,
+                          params={"select": "value", "key": "eq.usage_msg_id"}).json()
+        msg_id = st[0]["value"] if st else None
+        if msg_id:
+            r = requests.patch(f"{url}/messages/{msg_id}", json=payload, timeout=15)
+            if r.ok:
+                return
+        r = requests.post(url, params={"wait": "true"}, json={**payload, "flags": 4096}, timeout=15)
+        r.raise_for_status()
+        requests.post(f"{base}/rest/v1/bot_state", timeout=15,
+                      headers={**sb_headers(), "Prefer": "resolution=merge-duplicates"},
+                      json={"key": "usage_msg_id", "value": r.json()["id"]})
+    except (requests.RequestException, KeyError, ValueError) as e:
+        print(f"Usage report skipped: {e}", file=sys.stderr)
 
 
 # ---------- Discord ----------
@@ -645,6 +732,7 @@ def main() -> int:
     if first_run:
         print(f"First run: remembered {len(saved)} existing listings without alerting.")
         post_logs()
+        report_usage()
         return 0
     failed = []
     alerts = [r for r in saved if r["verdict"] == "DEAL" and not quiet(r) and r.get("status") != "ai_rejected"]
@@ -671,6 +759,7 @@ def main() -> int:
     if not fresh:
         LOG.append("Nothing new.")
     post_logs()
+    report_usage()
     return 0
 
 
@@ -737,6 +826,7 @@ def daily_digest() -> int:
         "footer": {"text": f"{len(gone)} earlier alerts have sold or ended · checked {now:%H:%M} UTC"},
     }]}, daily=True)
     print(f"Digest: {len(main)} main, {len(extras)} extras, {len(gone)} gone")
+    report_usage()
     return 0
 
 
