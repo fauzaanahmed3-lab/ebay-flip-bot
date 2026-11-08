@@ -20,6 +20,7 @@ import sys
 import time
 from datetime import timedelta
 from datetime import datetime, timezone
+from collections import Counter
 from pathlib import Path
 
 import requests
@@ -28,6 +29,13 @@ CONFIG = json.loads((Path(__file__).parent / "categories.json").read_text())
 DRY_RUN = os.getenv("DRY_RUN") == "1"
 EBAY_API = "https://api.ebay.com"
 TABLE = "flip_listings"
+WHY = Counter()          # (category, reason) -> how many listings were dropped for it this run
+LOG: list[str] = []      # lines for the #bot-logs channel
+
+
+def _no(cat_id: str, reason: str):
+    WHY[(cat_id, reason)] += 1
+    return None
 PACK = CONFIG["packaging_cost"]
 
 
@@ -113,7 +121,7 @@ def triage(cat: dict, item: dict) -> dict | None:
     title = item.get("title", "")
     t = norm(title)
     if item.get("itemLocation", {}).get("country", "GB") != "GB":
-        return None
+        return _no(cat["id"], "not UK")
 
     price = float(item["price"]["value"])
     ship_opts = item.get("shippingOptions") or []
@@ -124,28 +132,28 @@ def triage(cat: dict, item: dict) -> dict | None:
 
     best_target = max(buy_target(m["strong"], cat["post_out"], cat.get("max_buy")) for m in cat["models"])
     if all_in > best_target * (1 + CONFIG["offer_zone_pct"]):           # stage 2: price gate
-        return None
+        return _no(cat["id"], "too pricey")
 
     junk = CONFIG["junk"] + (CONFIG["phone_rules"]["junk"] if cat.get("phone") else [])
     if junk_word(junk, t) or any_match(cat["wrong"] + CONFIG.get("junk_patterns", []), t):   # stage 3: hard reject
-        return None
+        return _no(cat["id"], "junk/wrong item")
     if cat.get("require") and not all(w in t for w in cat["require"]):
-        return None
+        return _no(cat["id"], "missing key word")
     if cat.get("require_any") and not re.search(cat["require_any"], t):
-        return None                                  # e.g. consoles: title must look like a console, not a game or accessory
+        return _no(cat["id"], "not the main product")                                  # e.g. consoles: title must look like a console, not a game or accessory
 
     seller = item.get("seller", {})
     fb = int(seller.get("feedbackScore", 0) or 0)
     pct = float(seller.get("feedbackPercentage", 0) or 0)
     if fb < CONFIG["seller_min_feedback"] or pct < CONFIG["seller_min_pct"]:
-        return None                                                      # brand-new or poorly rated seller
+        return _no(cat["id"], "weak seller")                                                      # brand-new or poorly rated seller
     if cat.get("phone") and (fb < CONFIG["phone_rules"]["min_feedback"] or pct < CONFIG["phone_rules"]["min_pct"]):
-        return None                                                      # phones: strict sellers only
+        return _no(cat["id"], "weak seller")                                                      # phones: strict sellers only
 
     hints = cat.get("category_hint")
     names = " ".join(c.get("categoryName", "") for c in item.get("categories", [])).lower()
     if hints and names and not any(h in names for h in hints):
-        return None
+        return _no(cat["id"], "wrong eBay category")
 
     model = model_for(cat, t)                                            # stage 4: lanes
     best_offer = "BEST_OFFER" in item.get("buyingOptions", [])
@@ -153,11 +161,11 @@ def triage(cat: dict, item: dict) -> dict | None:
         lane = "EXACT"
         target = buy_target(model["strong"], cat["post_out"], cat.get("max_buy"))
         if all_in > target and not (best_offer and all_in <= target * (1 + CONFIG["offer_zone_pct"])):
-            return None                                                  # e.g. an XM5 priced like an XM6
+            return _no(cat["id"], "too pricey")                                                  # e.g. an XM5 priced like an XM6
     elif re.search(cat["family"], t):
         lane = "VAGUE"
     else:
-        return None
+        return _no(cat["id"], "model not recognised")
 
     return {
         "item_id": item["itemId"], "category": cat["id"], "title": title[:200],
@@ -332,15 +340,19 @@ def track_outcomes(token: str) -> None:
                    "outcome": "is.null", "and": f"(first_seen.gte.{week_ago},first_seen.lte.{hour_ago})",
                    "order": "last_checked.asc.nullsfirst", "limit": str(n)})
     now = datetime.now(timezone.utc).isoformat()
+    if rows:
+        LOG.append(f"📦 Tracker: re-checked {len(rows)} earlier alert(s)")
     for row in rows:
         r = requests.get(f"{EBAY_API}/buy/browse/v1/item/{row['item_id']}", headers=ebay_headers(token), timeout=20)
         patch = {"last_checked": now}
         if r.status_code == 404:
             patch.update(outcome="gone", gone_at=now)          # sold or ended since the last check
+            LOG.append(f"📦 Tracker: {row['item_id']} has gone (sold or ended)")
         elif r.ok:
             d = r.json()
             if any(a.get("estimatedAvailabilityStatus") == "OUT_OF_STOCK" for a in d.get("estimatedAvailabilities") or []):
                 patch.update(outcome="gone", gone_at=now)
+                LOG.append(f"📦 Tracker: {row['item_id']} sold out")
             else:
                 patch["current_price"] = float((d.get("price") or {}).get("value") or 0) or None
                 if row["first_seen"] < (datetime.now(timezone.utc) - timedelta(days=6, hours=23)).isoformat():
@@ -476,6 +488,33 @@ def post_discord(payload: dict, daily: bool = False) -> None:
     time.sleep(0.6)
 
 
+def post_logs() -> None:
+    """Under-the-hood log for #bot-logs: silent (no pings, no notifications), costs no eBay or Gemini calls."""
+    url = os.getenv("DISCORD_LOG_WEBHOOK_URL")
+    if not url or not LOG or DRY_RUN:
+        return
+    chunks, cur = [], ""
+    for line in LOG:
+        line = line[:300]
+        if len(cur) + len(line) + 1 > 1900:
+            chunks.append(cur); cur = ""
+        cur += line + "\n"
+    chunks.append(cur)
+    for c in chunks[:5]:
+        try:
+            r = requests.post(url, json={"content": c, "allowed_mentions": {"parse": []}, "flags": 4096}, timeout=15)
+            if r.status_code == 429:
+                time.sleep(float(r.json().get("retry_after", 2)) + 0.5)
+                requests.post(url, json={"content": c, "allowed_mentions": {"parse": []}, "flags": 4096}, timeout=15)
+            time.sleep(0.6)
+        except requests.RequestException as e:
+            print(f"Log post failed: {e}", file=sys.stderr)
+
+
+def short(row: dict) -> str:
+    return f"{row.get('title', '')[:60]} · £{float(row.get('all_in') or 0):.0f}"
+
+
 def discord_alert(row: dict) -> None:
     key = ("HOT" if row["rating"] == "HOT" else
            "UNCONFIRMED" if row["lane"] == "UNCONFIRMED" else
@@ -528,6 +567,7 @@ def main() -> int:
     full = full_scan_due()
     cats = [c for c in CONFIG["categories"] if c.get("enabled") and c["models"] and (full or c.get("fast"))]
     print("Full scan" if full else "Fast scan: " + ", ".join(c["id"] for c in cats))
+    LOG.append(f"**{'Full' if full else 'Fast'} scan** · {datetime.now(timezone.utc).strftime('%H:%M')} UTC")
     cands = []
     for cat in cats:
         seen_ids = set()
@@ -536,6 +576,7 @@ def main() -> int:
                 items = ebay_search(token, cat, q)
             except requests.HTTPError as e:
                 print(f"[{cat['id']}] '{q}' failed: {e}", file=sys.stderr)
+                LOG.append(f"⚠️ {cat['id']}: search failed ({e.response.status_code if e.response is not None else 'error'})")
                 continue
             for it in items:
                 if it["itemId"] in seen_ids:
@@ -544,21 +585,29 @@ def main() -> int:
                 c = triage(cat, it)
                 if c:
                     cands.append((cat, c))
-        print(f"[{cat['id']}] {len(seen_ids)} listings, {sum(1 for x in cands if x[0] is cat)} past the cheap filters")
+        passed = sum(1 for x in cands if x[0] is cat)
+        print(f"[{cat['id']}] {len(seen_ids)} listings, {passed} past the cheap filters")
+        why = sorted(((n, r) for (cid, r), n in WHY.items() if cid == cat["id"]), reverse=True)
+        LOG.append(f"`{cat['id']}` {len(seen_ids)} checked → {passed} passed"
+                   + (" · dropped: " + ", ".join(f"{n} {r}" for n, r in why) if why else ""))
 
     old = already_seen([c["item_id"] for _, c in cands])
     # new listings, plus old ones whose price has dropped by £5+ since we last looked
     fresh = [(cat, c) for cat, c in cands if c["item_id"] not in old or c["all_in"] <= old[c["item_id"]] - 5]
     fresh.sort(key=lambda x: (x[1]["lane"] != "EXACT", x[1]["all_in"]))          # exact first, then cheapest
+    if cands:
+        LOG.append(f"{len(cands) - len(fresh)} already seen before, {len(fresh)} new to look at")
 
     results, lookups = [], 0
     for cat, c in fresh:
         details = None
         if lookups >= CONFIG["max_detail_lookups"]:
+            LOG.append(f"⏭️ {short(c)}: lookup limit reached, next run")
             continue                                    # never alert unchecked listings; they're picked up next run
         details = ebay_item(token, c["item_id"])
         lookups += 1
         if details is None:
+            LOG.append(f"❔ {short(c)}: listing details unavailable")
             continue
         row = score(cat, c, details)
         if row and row["verdict"] == "DEAL" and not quiet(row):
@@ -568,6 +617,16 @@ def main() -> int:
             else:
                 tag = {"yes": "🤖 AI checked: looks genuine", "unsure": "🤖 AI unsure"}.get(row["ai_verdict"], "🤖 AI check not run")
                 row["notes"] = (f"{tag} ({row['ai_reason']})" if row["ai_reason"] else tag) + ("\n" + row["notes"] if row.get("notes") else "")
+        if row is None:
+            LOG.append(f"❌ {short(c)}: rejected after reading the listing (wrong spec, damage or price)")
+        elif row.get("status") == "ai_rejected":
+            LOG.append(f"🤖❌ {short(row)}: AI said no ({row.get('ai_reason') or 'no reason'})")
+        elif row["verdict"] == "DEAL" and not quiet(row):
+            LOG.append(f"✅ {short(row)}: DEAL, posting · AI {row.get('ai_verdict')} ({row.get('ai_model') or '-'})")
+        elif row["verdict"] == "DEAL":
+            LOG.append(f"🔇 {short(row)}: deal but thin margin, saved not posted")
+        else:
+            LOG.append(f"🟡 {short(row)}: above target (offer zone), saved not posted")
         if row:
             results.append(row)
         elif details is not None:                       # remember rejects so we don't re-check them
@@ -579,11 +638,13 @@ def main() -> int:
     if DRY_RUN:
         for r in results:
             print(json.dumps(r, indent=2, default=str))
+        print("\n".join(LOG))
         return 0
     first_run = not has_history()
     saved = save_new(results)
     if first_run:
         print(f"First run: remembered {len(saved)} existing listings without alerting.")
+        post_logs()
         return 0
     failed = []
     alerts = [r for r in saved if r["verdict"] == "DEAL" and not quiet(r) and r.get("status") != "ai_rejected"]
@@ -605,6 +666,11 @@ def main() -> int:
             track_outcomes(token)
     except requests.RequestException as e:
         print(f"Outcome tracking skipped: {e}", file=sys.stderr)
+    if failed:
+        LOG.append(f"⚠️ {len(failed)} Discord alert(s) failed, will retry next run")
+    if not fresh:
+        LOG.append("Nothing new.")
+    post_logs()
     return 0
 
 
