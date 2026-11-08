@@ -351,6 +351,72 @@ def track_outcomes(token: str) -> None:
                        params={"item_id": f"eq.{row['item_id']}"}, json=patch, timeout=20)
 
 
+# ---------- AI check (Gemini) ----------
+
+AI_PROMPT = """You check eBay UK listings for a reseller. Product wanted: {product} ({model}).
+Decide if this listing is a COMPLETE, WORKING {model} that can be resold as one.
+Answer "no" if: it is an accessory, box, game, part, code or a different product/model; it is faulty, broken, for parts, untested, locked or banned; or the photo clearly shows a different item or serious damage.
+Answer "unsure" if key facts are missing (e.g. stock photo plus vague text, or main parts like controllers/charger missing).
+Otherwise answer "yes".
+Reply with JSON only: {{"verdict": "yes|no|unsure", "reason": "max 15 words"}}
+
+LISTING
+Title: {title}
+Price: £{price} (all-in £{all_in})
+Condition: {condition}
+Seller notes: {cond_desc}
+Item specifics: {aspects}
+Description: {desc}
+"""
+
+
+def _strip_html(h: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", h or "")).strip()
+
+
+def ai_check(cat: dict, row: dict, details: dict) -> tuple[str, str, str]:
+    """Ask Gemini whether the listing is the real, complete, working item. Returns (verdict, reason, model)."""
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key or DRY_RUN:
+        return "skipped", "AI check not configured", ""
+    d = details or {}
+    aspects = "; ".join(f"{a.get('name')}: {a.get('value')}" for a in (d.get("localizedAspects") or [])[:15])
+    prompt = AI_PROMPT.format(
+        product=cat.get("label", cat["id"]), model=row.get("variant") or cat.get("label"),
+        title=row.get("title"), price=row.get("price"), all_in=row.get("all_in"),
+        condition=d.get("condition", "?"), cond_desc=(d.get("conditionDescription") or "-")[:400],
+        aspects=aspects[:600] or "-", desc=_strip_html(d.get("shortDescription") or d.get("description") or "")[:1500] or "-")
+    parts = [{"text": prompt}]
+    img = ((d.get("image") or {}).get("imageUrl")) or row.get("image_url")
+    if img:
+        try:
+            ir = requests.get(img, timeout=5)
+            if ir.ok and len(ir.content) < 4_000_000:
+                parts.append({"inline_data": {"mime_type": ir.headers.get("Content-Type", "image/jpeg").split(";")[0],
+                                              "data": base64.b64encode(ir.content).decode()}})
+        except requests.RequestException:
+            pass
+    body = {"contents": [{"parts": parts}],
+            "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "maxOutputTokens": 120}}
+    for model in CONFIG.get("ai_models", ["gemini-3.5-flash-lite", "gemini-2.5-flash-lite"]):
+        try:
+            r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                              headers={"x-goog-api-key": key}, json=body, timeout=12)
+        except requests.RequestException:
+            continue
+        if not r.ok:                               # 429 = free allowance used up, 404 = model name not available
+            print(f"AI {model}: HTTP {r.status_code}", file=sys.stderr)
+            continue
+        try:
+            text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            out = json.loads(text[text.find("{"): text.rfind("}") + 1])
+            verdict = str(out.get("verdict", "unsure")).lower()
+            return (verdict if verdict in ("yes", "no", "unsure") else "unsure"), str(out.get("reason", ""))[:120], model
+        except (KeyError, IndexError, ValueError):
+            continue
+    return "unavailable", "AI check unavailable right now", ""
+
+
 # ---------- Supabase ----------
 
 def sb_headers():
@@ -449,9 +515,19 @@ def quiet(row: dict) -> bool:
     return row.get("rating") == "CHECK" and float(row.get("safe_profit") or 0) < need / 2
 
 
+def full_scan_due() -> bool:
+    """Runs every few minutes: 'fast' categories every run, everything else once per full_scan_every_min."""
+    if os.environ.get("FULL_SCAN") == "1":
+        return True
+    every = CONFIG.get("full_scan_every_min", 0)
+    return not every or datetime.now(timezone.utc).minute % every < CONFIG.get("run_every_min", 3)
+
+
 def main() -> int:
     token = ebay_token()
-    cats = [c for c in CONFIG["categories"] if c.get("enabled") and c["models"]]
+    full = full_scan_due()
+    cats = [c for c in CONFIG["categories"] if c.get("enabled") and c["models"] and (full or c.get("fast"))]
+    print("Full scan" if full else "Fast scan: " + ", ".join(c["id"] for c in cats))
     cands = []
     for cat in cats:
         seen_ids = set()
@@ -485,6 +561,13 @@ def main() -> int:
         if details is None:
             continue
         row = score(cat, c, details)
+        if row and row["verdict"] == "DEAL" and not quiet(row):
+            row["ai_verdict"], row["ai_reason"], row["ai_model"] = ai_check(cat, row, details)
+            if row["ai_verdict"] == "no":
+                row["status"] = "ai_rejected"           # saved for review, never posted
+            else:
+                tag = {"yes": "🤖 AI checked: looks genuine", "unsure": "🤖 AI unsure"}.get(row["ai_verdict"], "🤖 AI check not run")
+                row["notes"] = (f"{tag} ({row['ai_reason']})" if row["ai_reason"] else tag) + ("\n" + row["notes"] if row.get("notes") else "")
         if row:
             results.append(row)
         elif details is not None:                       # remember rejects so we don't re-check them
@@ -503,7 +586,7 @@ def main() -> int:
         print(f"First run: remembered {len(saved)} existing listings without alerting.")
         return 0
     failed = []
-    alerts = [r for r in saved if r["verdict"] == "DEAL" and not quiet(r)]   # offers are saved, never posted live
+    alerts = [r for r in saved if r["verdict"] == "DEAL" and not quiet(r) and r.get("status") != "ai_rejected"]
     rank = {"HOT": 0, "SOLID": 1}
     alerts.sort(key=lambda r: (rank.get(r.get("rating"), 2), r["verdict"] != "DEAL", -float(r.get("profit") or 0)))
     # drip-feed: best first, then about one a minute, all done before the next 10-minute scan
@@ -518,7 +601,8 @@ def main() -> int:
             failed.append(row["item_id"])
     sb_set_status(failed, "retry")                    # picked up again on the next run
     try:
-        track_outcomes(token)
+        if full:
+            track_outcomes(token)
     except requests.RequestException as e:
         print(f"Outcome tracking skipped: {e}", file=sys.stderr)
     return 0
