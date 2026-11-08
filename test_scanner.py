@@ -268,3 +268,35 @@ check9("thin-margin CHECK is quiet", s.quiet({"rating": "CHECK", "safe_profit": 
 check9("good CHECK (new seller) still posts", s.quiet({"rating": "CHECK", "safe_profit": 60, "required_profit": 50}), False)
 check9("SOLID never quiet", s.quiet({"rating": "SOLID", "safe_profit": 5, "required_profit": 50}), False)
 print(f"4:25 fixes: {sum(R9)}/{len(R9)} passed")
+
+# ---- 8 Nov: profit tiers, deals only ----
+R10 = []
+def check10(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R10.append(ok)
+check10("£299 needs £50", s.required_profit(299), 50)
+check10("£300 needs £75", s.required_profit(300), 75)
+check10("£399 needs £75", s.required_profit(399.99), 75)
+check10("£400 needs £100", s.required_profit(400), 100)
+check10("target in £300 band leaves £75", s._buy_target(400, 0) , 324.0)
+check10("target never lands where profit < rule", all(n - s._buy_target(n, 0) - s.PACK >= s.required_profit(s._buy_target(n, 0)) - 0.01 for n in range(120, 1200, 7)), True)
+check10("per-category cap overrides £500", s.buy_target(1000, 15, 900) > 500, True)
+check10("offers never post live", "r[\"verdict\"] == \"DEAL\"" in open("scanner.py").read(), True)
+print(f"8 Nov tiers: {sum(R10)}/{len(R10)} passed")
+
+# ---- PS5 Pro (8 Nov) ----
+R11 = []
+def check11(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R11.append(ok)
+c = s.triage(CATS["ps5pro"], item("Sony PlayStation 5 Pro 2TB Console boxed", 760, 0, fb=200))
+check11("PS5 Pro at £760 found (over the £500 cap)", c is not None and c["model"], "PS5 Pro 2TB")
+check11("PS5 Pro at £880 too dear", s.triage(CATS["ps5pro"], item("PS5 Pro console 2TB", 880, 0, fb=200)), None)
+check11("DualSense Edge rejected", s.triage(CATS["ps5pro"], item("PS5 Pro DualSense Edge controller", 150, fb=200)), None)
+check11("normal PS5 category still skips Pro", s.triage(CATS["ps5"], item("PS5 Pro 2TB console", 400, fb=200)), None)
+check11("other categories still capped at £500", s.buy_target(2000, 10) <= 500, True)
+r = run("ps5pro", item("Sony PlayStation 5 Pro 2TB Console boxed", 760, 0, fb=200), details())
+check11("PS5 Pro £760 is a DEAL needing £100", (r["verdict"], r["required_profit"]), ("DEAL", 100))
+print(f"PS5 Pro: {sum(R11)}/{len(R11)} passed")

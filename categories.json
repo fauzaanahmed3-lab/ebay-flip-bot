@@ -59,7 +59,7 @@
     "video game"
    ],
    "price_min": 120,
-   "price_max": 344,
+   "price_max": 321,
    "post_out": 8,
    "family": "(meta|oculus).*(quest|vr|headset)|quest.*(vr|headset)",
    "wrong": [
@@ -110,7 +110,7 @@
     "video game"
    ],
    "price_min": 250,
-   "price_max": 534,
+   "price_max": 499,
    "post_out": 9,
    "family": "steam ?deck",
    "wrong": [
@@ -152,7 +152,7 @@
     "headphone"
    ],
    "price_min": 50,
-   "price_max": 220,
+   "price_max": 205,
    "post_out": 6,
    "family": "sony.*(headphone|noise cancel|over.?ear|wireless)",
    "wrong": [
@@ -206,7 +206,7 @@
     "headphone"
    ],
    "price_min": 70,
-   "price_max": 244,
+   "price_max": 228,
    "post_out": 6,
    "family": "bose.*(headphone|noise cancel|over.?ear|quietcomfort|qc)",
    "wrong": [
@@ -257,7 +257,7 @@
     "headphone"
    ],
    "price_min": 50,
-   "price_max": 100,
+   "price_max": 93,
    "post_out": 6,
    "family": "sennheiser.*(momentum|headphone)",
    "wrong": [
@@ -297,7 +297,7 @@
     "hair"
    ],
    "price_min": 35,
-   "price_max": 81,
+   "price_max": 76,
    "post_out": 7,
    "family": "dyson.*(hair|dryer)",
    "wrong": [
@@ -352,7 +352,7 @@
     "phone"
    ],
    "price_min": 250,
-   "price_max": 600,
+   "price_max": 560,
    "post_out": 6,
    "family": "oneplus",
    "wrong": [
@@ -413,7 +413,7 @@
     "phone"
    ],
    "price_min": 300,
-   "price_max": 600,
+   "price_max": 560,
    "post_out": 6,
    "family": "samsung|galaxy",
    "wrong": [
@@ -491,7 +491,7 @@
      "note": "Storage not stated: priced as 128GB"
     }
    ],
-   "price_max": 212,
+   "price_max": 198,
    "require_any": "\\bheadset\\b|\\bcontrollers?\\b|\\b(128|256|512) ?gb\\b|\\bstandalone\\b|\\bboxed\\b|\\bbundle\\b|\\bconsole\\b|\\bmixed reality\\b"
   },
   {
@@ -535,7 +535,7 @@
      "note": "Test Joy-Cons for drift and check the dock works"
     }
    ],
-   "price_max": 146
+   "price_max": 136
   },
   {
    "id": "switch2",
@@ -589,7 +589,7 @@
      "note": "New model: check it isn't linked to the seller's account"
     }
    ],
-   "price_max": 344,
+   "price_max": 321,
    "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b"
   },
   {
@@ -633,7 +633,7 @@
      "note": "Check the gimbal moves freely and the screen rotates"
     }
    ],
-   "price_max": 316
+   "price_max": 295
   },
   {
    "id": "ps5",
@@ -716,7 +716,7 @@
      "note": "Title doesn't say slim or digital: confirm the model from the photos."
     }
    ],
-   "price_max": 480,
+   "price_max": 448,
    "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b"
   },
   {
@@ -785,7 +785,7 @@
      "typical": 480
     }
    ],
-   "price_max": 496,
+   "price_max": 463,
    "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b"
   },
   {
@@ -857,8 +857,75 @@
      "typical": 255
     }
    ],
-   "price_max": 245,
+   "price_max": 229,
    "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b"
+  },
+  {
+   "id": "ps5pro",
+   "label": "PS5 Pro (high value)",
+   "enabled": true,
+   "weekly_sales": 56,
+   "queries": [
+    "ps5 pro console"
+   ],
+   "category_hint": [
+    "console",
+    "video game"
+   ],
+   "price_min": 500,
+   "post_out": 15,
+   "max_buy": 900,
+   "family": "\\b(ps5|playstation ?5) ?pro\\b",
+   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b|\\bpro\\b.*\\b2 ?tb\\b",
+   "wrong": [
+    "controllers? only",
+    "pads? only",
+    "drive only",
+    "disc drive\\b(?!.*console)",
+    "\\bstand\\b(?! included)",
+    "\\bcase\\b(?! included)",
+    "\\bskin\\b",
+    "cover plates?",
+    "faceplates?",
+    "\\bgames? only",
+    "no controller",
+    "without controller",
+    "\\bbanned\\b",
+    "console only(?=.*no)",
+    "digital key",
+    "\\bcode\\b",
+    "portal",
+    "\\bps4\\b",
+    "\\bps5 games?\\b",
+    "expansion",
+    "storage card",
+    "\\bssd\\b",
+    "steel ?book",
+    "pre ?order",
+    "\\bvr ?2?\\b",
+    "psvr",
+    "headset",
+    "\\bportal\\b",
+    "\\bcamera\\b",
+    "face ?plates?",
+    "\\bgame only\\b",
+    "\\bcodes?\\b",
+    "dualsense edge",
+    "pro controller",
+    "controller",
+    "\\bportal\\b"
+   ],
+   "wrong_specs": [],
+   "models": [
+    {
+     "name": "PS5 Pro 2TB",
+     "match": "\\bpro\\b",
+     "strong": 930,
+     "typical": 899,
+     "note": "High-value item: insure postage, check serial, power-on video from the seller."
+    }
+   ],
+   "price_max": 912
   }
  ],
  "phone_rules": {
