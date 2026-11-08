@@ -331,3 +331,24 @@ check12("PS5 Pro is a fast category", CATS["ps5pro"].get("fast"), True)
 check12("3.5 Flash-Lite tried first", s.CONFIG["ai_models"][0], "gemini-3.5-flash-lite")
 _os.environ["FULL_SCAN"]="1"; check12("manual full scan works", s.full_scan_due(), True); del _os.environ["FULL_SCAN"]
 print(f"AI + fast scans: {sum(R12)}/{len(R12)} passed")
+
+# ---- #bot-logs channel (8 Nov) ----
+R13 = []
+def check13(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R13.append(ok)
+s.WHY.clear()
+s.triage(CATS["ps5pro"], item("Sony PlayStation 5 Pro 2TB Console boxed", 2000, 0, fb=200))
+s.triage(CATS["ps5pro"], item("Sony PlayStation 5 Pro 2TB Console boxed", 760, 0, fb=0))
+check13("rejection reasons are counted", (s.WHY[("ps5pro", "too pricey")], s.WHY[("ps5pro", "weak seller")]), (1, 1))
+_sent = []
+s.requests.post = lambda url, **k: (_sent.append(k["json"]), _R(204))[1]
+s.LOG[:] = ["line"] * 200
+_os.environ.pop("DISCORD_LOG_WEBHOOK_URL", None); s.post_logs()
+check13("no log webhook -> nothing sent", len(_sent), 0)
+_os.environ["DISCORD_LOG_WEBHOOK_URL"] = "http://log"; s.post_logs()
+check13("logs split into Discord-sized messages", all(len(p["content"]) <= 2000 for p in _sent) and len(_sent) >= 1, True)
+check13("logs never ping (no mentions, silent)", all(p["allowed_mentions"] == {"parse": []} and p["flags"] == 4096 for p in _sent), True)
+del _os.environ["DISCORD_LOG_WEBHOOK_URL"]; s.requests.post = _old_post; s.LOG.clear()
+print(f"bot logs: {sum(R13)}/{len(R13)} passed")
