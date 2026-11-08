@@ -925,7 +925,8 @@
      "note": "High-value item: insure postage, check serial, power-on video from the seller."
     }
    ],
-   "price_max": 912
+   "price_max": 912,
+   "fast": true
   }
  ],
  "phone_rules": {
@@ -973,6 +974,12 @@
  "trusted_min_feedback": 10,
  "trusted_min_pct": 98,
  "alert_gap_sec": 55,
- "alert_window_sec": 300,
- "track_per_run": 5
+ "alert_window_sec": 90,
+ "track_per_run": 5,
+ "ai_models": [
+  "gemini-3.5-flash-lite",
+  "gemini-2.5-flash-lite"
+ ],
+ "full_scan_every_min": 12,
+ "run_every_min": 3
 }

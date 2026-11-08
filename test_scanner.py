@@ -300,3 +300,34 @@ check11("other categories still capped at £500", s.buy_target(2000, 10) <= 500,
 r = run("ps5pro", item("Sony PlayStation 5 Pro 2TB Console boxed", 760, 0, fb=200), details())
 check11("PS5 Pro £760 is a DEAL needing £100", (r["verdict"], r["required_profit"]), ("DEAL", 100))
 print(f"PS5 Pro: {sum(R11)}/{len(R11)} passed")
+
+# ---- AI check + fast scans (8 Nov) ----
+R12 = []
+def check12(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R12.append(ok)
+import os as _os, json as _json
+class _R:
+    def __init__(self, code, j=None, content=b""): self.status_code=code; self.ok=code==200; self._j=j; self.content=content; self.headers={"Content-Type":"image/jpeg"}
+    def json(self): return self._j
+_calls=[]
+def _post(url, **k):
+    _calls.append(url.split("/models/")[1].split(":")[0])
+    if "3.5" in url: return _R(429)
+    return _R(200, {"candidates":[{"content":{"parts":[{"text":_json.dumps({"verdict":"no","reason":"Controller only, not a console"})}]}}]})
+_old_post, _old_get = s.requests.post, s.requests.get
+s.requests.post = _post; s.requests.get = lambda url, **k: _R(200, content=b"img")
+_os.environ["GEMINI_API_KEY"]="test"
+row = {"title":"PS5 Pro controller","price":100,"all_in":104,"variant":"PS5 Pro 2TB","image_url":"http://x/i.jpg"}
+v = s.ai_check(CATS["ps5pro"], row, {"condition":"Used","localizedAspects":[{"name":"Model","value":"Pro"}]})
+check12("3.5 Flash-Lite out of quota -> falls back to 2.5", (_calls, v[0], v[2]), (["gemini-3.5-flash-lite","gemini-2.5-flash-lite"], "no", "gemini-2.5-flash-lite"))
+s.requests.post = lambda url, **k: _R(429)
+check12("both models out -> 'unavailable', alert still allowed", s.ai_check(CATS["ps5pro"], row, {})[0], "unavailable")
+del _os.environ["GEMINI_API_KEY"]
+check12("no key -> skipped", s.ai_check(CATS["ps5pro"], row, {})[0], "skipped")
+s.requests.post, s.requests.get = _old_post, _old_get
+check12("PS5 Pro is a fast category", CATS["ps5pro"].get("fast"), True)
+check12("3.5 Flash-Lite tried first", s.CONFIG["ai_models"][0], "gemini-3.5-flash-lite")
+_os.environ["FULL_SCAN"]="1"; check12("manual full scan works", s.full_scan_due(), True); del _os.environ["FULL_SCAN"]
+print(f"AI + fast scans: {sum(R12)}/{len(R12)} passed")
