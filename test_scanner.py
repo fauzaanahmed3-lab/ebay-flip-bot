@@ -321,7 +321,7 @@ s.requests.post = _post; s.requests.get = lambda url, **k: _R(200, content=b"img
 _os.environ["GEMINI_API_KEY"]="test"
 row = {"title":"PS5 Pro controller","price":100,"all_in":104,"variant":"PS5 Pro 2TB","image_url":"http://x/i.jpg"}
 v = s.ai_check(CATS["ps5pro"], row, {"condition":"Used","localizedAspects":[{"name":"Model","value":"Pro"}]})
-check12("3.5 Flash-Lite out of quota -> falls back to 2.5", (_calls, v[0], v[2]), (["gemini-3.5-flash-lite","gemini-2.5-flash-lite"], "no", "gemini-2.5-flash-lite"))
+check12("3.5 Flash-Lite out of quota -> falls back to 3.1", (_calls, v[0], v[2]), (["gemini-3.5-flash-lite","gemini-3.1-flash-lite"], "no", "gemini-3.1-flash-lite"))
 s.requests.post = lambda url, **k: _R(429)
 check12("both models out -> 'unavailable', alert still allowed", s.ai_check(CATS["ps5pro"], row, {})[0], "unavailable")
 del _os.environ["GEMINI_API_KEY"]
@@ -352,3 +352,23 @@ check13("logs split into Discord-sized messages", all(len(p["content"]) <= 2000 
 check13("logs never ping (no mentions, silent)", all(p["allowed_mentions"] == {"parse": []} and p["flags"] == 4096 for p in _sent), True)
 del _os.environ["DISCORD_LOG_WEBHOOK_URL"]; s.requests.post = _old_post; s.LOG.clear()
 print(f"bot logs: {sum(R13)}/{len(R13)} passed")
+
+# ---- API usage bar (8 Nov) ----
+R14 = []
+def check14(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R14.append(ok)
+from datetime import datetime as _dt, timezone as _tz
+_n = _dt(2026, 11, 8, 23, 40, tzinfo=_tz.utc)                      # 15:40 Pacific
+check14("usage day follows Pacific time", str(s.usage_day(_n)), "2026-11-08")
+check14("08:30 UK still counts as the new Pacific day", str(s.usage_day(_dt(2026, 11, 9, 8, 30, tzinfo=_tz.utc))), "2026-11-09")
+check14("bar 250/500 is half full", s.bar(250, 500), "▰" * 6 + "▱" * 6)
+check14("bar never overflows", s.bar(900, 500), "▰" * 12)
+txt = s.render_usage({"gemini-3.5-flash-lite": (12, 0), "ebay": (2101, 0), "gemini-2.5-flash-lite": (20, 3)}, {"gemini-3.5-flash-lite": 80, "ebay": 20000}, _n)
+check14("shows used / limit / left", "12 / 500 · 488 left" in txt, True)
+check14("shows limit hits", "hit limit 3x" in txt, True)
+check14("AI checks left adds the free models", "AI checks left today: ~988" in txt, True)
+check14("reset shown in UK time", "Resets 08:00 UK (in 8h 20m)" in txt, True)
+check14("counts AI attempts, not 429s", (s.USAGE.get("gemini-3.1-flash-lite", 0) >= 1, s.LIMITED.get("gemini-3.5-flash-lite", 0) >= 1), (True, True))
+print(f"usage bar: {sum(R14)}/{len(R14)} passed")

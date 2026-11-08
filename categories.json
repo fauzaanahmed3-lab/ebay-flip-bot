@@ -978,8 +978,15 @@
  "track_per_run": 5,
  "ai_models": [
   "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
   "gemini-2.5-flash-lite"
  ],
  "full_scan_every_min": 12,
- "run_every_min": 3
+ "run_every_min": 3,
+ "usage_limits": {
+  "gemini-3.5-flash-lite": 500,
+  "gemini-3.1-flash-lite": 500,
+  "gemini-2.5-flash-lite": 20,
+  "ebay": 5000
+ }
 }
