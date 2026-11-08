@@ -72,20 +72,28 @@ def damage_in(text: str) -> bool:
 
 # ---------- profit rules ----------
 
+PROFIT_TIERS = [(0, 300, 50), (300, 400, 75), (400, 10**6, 100)]   # (from £, below £, profit needed)
+
+
 def required_profit(all_in: float) -> int:
-    """£50 minimum; anything bought for £400 or more needs £100."""
-    return 100 if all_in >= 400 else 50
+    """£50 under £300, £75 from £300, £100 from £400 (all-in purchase price)."""
+    return next(need for lo, hi, need in PROFIT_TIERS if lo <= all_in < hi)
 
 
-def buy_target(strong: float, post_out: float) -> float:
-    return min(_buy_target(strong, post_out), CONFIG.get("max_buy", 10**6))   # never spend more than max_buy
+def buy_target(strong: float, post_out: float, max_buy: float | None = None) -> float:
+    cap = max_buy if max_buy is not None else CONFIG.get("max_buy", 10**6)
+    return min(_buy_target(strong, post_out), cap)   # never spend more than the cap
 
 
 def _buy_target(strong: float, post_out: float) -> float:
+    """Highest price we can pay and still make that price band's required profit."""
     net = strong - post_out - PACK
-    if net - 50 < 400:
-        return round(net - 50, 2)
-    return round(net - 100, 2) if net - 100 >= 400 else 399.99
+    best = 0.0
+    for lo, hi, need in PROFIT_TIERS:
+        t = min(net - need, hi - 0.01)
+        if t >= lo:
+            best = max(best, t)
+    return round(best, 2)
 
 
 def buyer_fee(price: float) -> float:
@@ -114,7 +122,7 @@ def triage(cat: dict, item: dict) -> dict | None:
     fee = buyer_fee(price)                       # assume a private seller until the details say business
     all_in = round(price + ship + fee, 2)
 
-    best_target = max(buy_target(m["strong"], cat["post_out"]) for m in cat["models"])
+    best_target = max(buy_target(m["strong"], cat["post_out"], cat.get("max_buy")) for m in cat["models"])
     if all_in > best_target * (1 + CONFIG["offer_zone_pct"]):           # stage 2: price gate
         return None
 
@@ -143,7 +151,7 @@ def triage(cat: dict, item: dict) -> dict | None:
     best_offer = "BEST_OFFER" in item.get("buyingOptions", [])
     if model:
         lane = "EXACT"
-        target = buy_target(model["strong"], cat["post_out"])
+        target = buy_target(model["strong"], cat["post_out"], cat.get("max_buy"))
         if all_in > target and not (best_offer and all_in <= target * (1 + CONFIG["offer_zone_pct"])):
             return None                                                  # e.g. an XM5 priced like an XM6
     elif re.search(cat["family"], t):
@@ -195,7 +203,7 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
             model = min(cat["models"], key=lambda m: m["strong"])          # price as the cheapest model
             notes.append("Model not confirmed. Check the photos before buying.")
 
-    target = buy_target(model["strong"], cat["post_out"])
+    target = buy_target(model["strong"], cat["post_out"], cat.get("max_buy"))
     all_in, ship = cand["all_in"], cand["shipping"]
     suggested_offer = None
     if lane == "UNCONFIRMED":
@@ -495,7 +503,7 @@ def main() -> int:
         print(f"First run: remembered {len(saved)} existing listings without alerting.")
         return 0
     failed = []
-    alerts = [r for r in saved if r["verdict"] != "REJECT" and not quiet(r)]
+    alerts = [r for r in saved if r["verdict"] == "DEAL" and not quiet(r)]   # offers are saved, never posted live
     rank = {"HOT": 0, "SOLID": 1}
     alerts.sort(key=lambda r: (rank.get(r.get("rating"), 2), r["verdict"] != "DEAL", -float(r.get("profit") or 0)))
     # drip-feed: best first, then about one a minute, all done before the next 10-minute scan
