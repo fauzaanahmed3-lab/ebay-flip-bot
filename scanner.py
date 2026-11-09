@@ -39,6 +39,16 @@ LIMITED = Counter()      # Gemini 'free allowance used up' (429) replies this ru
 def _no(cat_id: str, reason: str):
     WHY[(cat_id, reason)] += 1
     return None
+
+
+AI_OK: dict[str, str] = {}           # item_id -> model: AI-approved listings still waiting for a detail lookup
+SOFT: list[tuple[dict, dict]] = []   # (category, candidate) dropped only by word filters: sent to the AI screen
+
+
+def _soft(cat: dict, cand: dict, reason: str):
+    WHY[(cat["id"], f"{reason} → AI")] += 1
+    SOFT.append((cat, {**cand, "soft_reason": reason}))
+    return None
 PACK = CONFIG["packaging_cost"]
 
 
@@ -120,7 +130,9 @@ def model_for(cat: dict, text: str) -> dict | None:
 # ---------- stages 2-4: cheap checks on the search result ----------
 
 def triage(cat: dict, item: dict) -> dict | None:
-    """Return a candidate dict (lane EXACT or VAGUE) or None if rejected."""
+    """Return a candidate dict (lane EXACT or VAGUE) or None.
+    Hard rejects (price, faulty/parts, weak seller, abroad) are final. Soft rejects (word filters that can be
+    fooled by a lazy title, e.g. 'PS5 Pro with 2 controllers') go to SOFT for a batch AI screen instead."""
     title = item.get("title", "")
     t = norm(title)
     if item.get("itemLocation", {}).get("country", "GB") != "GB":
@@ -134,57 +146,58 @@ def triage(cat: dict, item: dict) -> dict | None:
     all_in = round(price + ship + fee, 2)
 
     best_target = max(buy_target(m["strong"], cat["post_out"], cat.get("max_buy")) for m in cat["models"])
-    if all_in > best_target * (1 + CONFIG["offer_zone_pct"]):           # stage 2: price gate
+    if all_in > best_target * (1 + CONFIG["offer_zone_pct"]):           # stage 2: price gate (maths, final)
         return _no(cat["id"], "too pricey")
 
     junk = CONFIG["junk"] + (CONFIG["phone_rules"]["junk"] if cat.get("phone") else [])
-    if junk_word(junk, t) or any_match(cat["wrong"] + CONFIG.get("junk_patterns", []), t):   # stage 3: hard reject
-        return _no(cat["id"], "junk/wrong item")
-    if cat.get("require") and not all(w in t for w in cat["require"]):
-        return _no(cat["id"], "missing key word")
-    if cat.get("require_any") and not re.search(cat["require_any"], t):
-        return _no(cat["id"], "not the main product")                                  # e.g. consoles: title must look like a console, not a game or accessory
+    if junk_word(junk, t):                                               # faulty / parts / box only: final
+        return _no(cat["id"], "faulty or parts")
 
     seller = item.get("seller", {})
     fb = int(seller.get("feedbackScore", 0) or 0)
     pct = float(seller.get("feedbackPercentage", 0) or 0)
     if fb < CONFIG["seller_min_feedback"] or pct < CONFIG["seller_min_pct"]:
-        return _no(cat["id"], "weak seller")                                                      # brand-new or poorly rated seller
+        return _no(cat["id"], "weak seller")                             # brand-new or poorly rated seller
     if cat.get("phone") and (fb < CONFIG["phone_rules"]["min_feedback"] or pct < CONFIG["phone_rules"]["min_pct"]):
-        return _no(cat["id"], "weak seller")                                                      # phones: strict sellers only
+        return _no(cat["id"], "weak seller")
 
-    hints = cat.get("category_hint")
-    names = " ".join(c.get("categoryName", "") for c in item.get("categories", [])).lower()
-    if hints and names and not any(h in names for h in hints):
-        return _no(cat["id"], "wrong eBay category")
-
-    model = model_for(cat, t)                                            # stage 4: lanes
     best_offer = "BEST_OFFER" in item.get("buyingOptions", [])
-    if model:
-        lane = "EXACT"
-        target = buy_target(model["strong"], cat["post_out"], cat.get("max_buy"))
-        if all_in > target and not (best_offer and all_in <= target * (1 + CONFIG["offer_zone_pct"])):
-            return _no(cat["id"], "too pricey")                                                  # e.g. an XM5 priced like an XM6
-    elif re.search(cat["family"], t):
-        lane = "VAGUE"
-    else:
-        return _no(cat["id"], "model not recognised")
-
-    return {
+    cand = {
         "item_id": item["itemId"], "category": cat["id"], "title": title[:200],
         "url": item.get("itemWebUrl"), "image_url": (item.get("image") or {}).get("imageUrl"),
         "price": price, "shipping": ship, "all_in": all_in, "fee": fee,
         "best_offer": best_offer, "ship_known": ship_known,
         "seller": None, "seller_feedback": fb, "seller_pct": pct,
         "listed_at": item.get("itemCreationDate"),
-        "lane": lane, "model": model["name"] if model else None,
-        "condition": item.get("condition"),
+        "lane": None, "model": None, "condition": item.get("condition"),
     }
+
+    # stage 3: word filters. A hit here is a "maybe": the AI screen gets the final say.
+    if junk_word(CONFIG.get("junk_soft", []), t) or any_match(cat["wrong"] + CONFIG.get("junk_patterns", []), t):
+        return _soft(cat, cand, "junk/wrong item")
+    if cat.get("require") and not all(w in t for w in cat["require"]):
+        return _soft(cat, cand, "missing key word")
+    if cat.get("require_any") and not re.search(cat["require_any"], t):
+        return _soft(cat, cand, "not the main product")
+    hints = cat.get("category_hint")
+    names = " ".join(c.get("categoryName", "") for c in item.get("categories", [])).lower()
+    if hints and names and not any(h in names for h in hints):
+        return _soft(cat, cand, "wrong eBay category")
+
+    model = model_for(cat, t)                                            # stage 4: lanes
+    if model:
+        target = buy_target(model["strong"], cat["post_out"], cat.get("max_buy"))
+        if all_in > target and not (best_offer and all_in <= target * (1 + CONFIG["offer_zone_pct"])):
+            return _no(cat["id"], "too pricey")                          # e.g. an XM5 priced like an XM6
+        return {**cand, "lane": "EXACT", "model": model["name"]}
+    if re.search(cat["family"], t):
+        return {**cand, "lane": "VAGUE"}
+    return _soft(cat, cand, "model not recognised")
 
 
 # ---------- stage 5: confirm with item details, then score ----------
 
-DROP = ("best_offer", "model", "condition", "ship_known", "fee")          # working fields, not stored
+DROP = ("best_offer", "model", "condition", "ship_known", "fee", "soft_reason", "rescued")          # working fields, not stored
 
 def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
     notes = []
@@ -439,6 +452,79 @@ def ai_check(cat: dict, row: dict, details: dict) -> tuple[str, str, str]:
     return "unavailable", "AI check unavailable right now", ""
 
 
+SCREEN_PROMPT = """You screen eBay UK listings for a reseller who buys and resells working units.
+For each listing, decide if it is selling the PRODUCT for its category.
+"yes" = the actual unit is for sale and presumably works. Bundles with extra games, controllers or accessories are fine.
+Cosmetic wear, light scratches, no original box or missing manuals are fine.
+"no" = only an accessory, game, part, case, strap, controller, charger or box; a different model or product;
+faulty, broken, for parts, locked or banned; a "wanted" ad; or clearly not the product.
+If "yes", set "m" to the matching model from that product's list when the title makes it clear, otherwise "".
+
+PRODUCTS
+{products}
+
+LISTINGS (index | product | all-in price | condition | title)
+{listings}
+
+Reply with a JSON array only, one object per listing:
+[{{"i": 0, "v": "yes|no", "m": "model or empty", "r": "reason, max 8 words"}}]
+"""
+
+
+def ai_screen(batch: list[tuple[dict, dict]]) -> dict | None:
+    """Text-only batch check of listings the word filters dropped. One Gemini request per ~30 listings.
+    Returns {item_id: (verdict, model_name, reason, ai_model)} or None if Gemini is unavailable."""
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key or DRY_RUN or not batch:
+        return None
+    out = {}
+    size = CONFIG.get("ai_screen_batch", 30)
+    for k in range(0, len(batch), size):
+        part = batch[k:k + size]
+        cats = {cat["id"]: cat for cat, _ in part}
+        products = "\n".join(f"[{cid}] {c.get('ai_hint') or c.get('label', cid)} Models: "
+                             + "; ".join(m["name"] for m in c["models"]) for cid, c in cats.items())
+        listings = "\n".join(f"{i} | {cat['id']} | £{c['all_in']:.0f} | {c.get('condition') or '?'} | {c['title']}"
+                             for i, (cat, c) in enumerate(part))
+        body = {"contents": [{"parts": [{"text": SCREEN_PROMPT.format(products=products, listings=listings)}]}],
+                "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
+                                     "maxOutputTokens": 60 * len(part) + 200}}
+        got = None
+        for model in CONFIG.get("ai_models", ["gemini-3.5-flash-lite"]):
+            try:
+                r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                                  headers={"x-goog-api-key": key}, json=body, timeout=25)
+            except requests.RequestException:
+                continue
+            if r.status_code == 429:
+                LIMITED[model] += 1
+            elif r.status_code != 404:
+                USAGE[model] += 1
+            if not r.ok:
+                print(f"AI screen {model}: HTTP {r.status_code}", file=sys.stderr)
+                continue
+            try:
+                text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+                got = (json.loads(text[text.find("["): text.rfind("]") + 1]), model)
+                break
+            except (KeyError, IndexError, ValueError):
+                continue
+        if got is None:
+            return out or None                                  # whatever was screened so far still counts
+        answers, model = got
+        for a in answers if isinstance(answers, list) else []:
+            try:
+                cat, c = part[int(a.get("i"))]
+            except (TypeError, ValueError, IndexError):
+                continue
+            v = str(a.get("v", "")).lower()
+            if v not in ("yes", "no"):
+                continue
+            names = {m["name"] for m in cat["models"]}
+            out[c["item_id"]] = (v, a.get("m") if a.get("m") in names else "", str(a.get("r", ""))[:80], model)
+    return out
+
+
 # ---------- Supabase ----------
 
 def sb_headers():
@@ -450,11 +536,19 @@ def already_seen(ids: list[str]) -> dict[str, float]:
     """{item_id: all_in price when we last looked} for listings we've already handled."""
     if not ids or DRY_RUN:
         return {}
-    quoted = ",".join('"' + i.replace('"', "") + '"' for i in ids)
-    r = requests.get(f"{os.environ['SUPABASE_URL']}/rest/v1/{TABLE}",
-                     headers=sb_headers(), params={"select": "item_id,all_in,status", "item_id": f"in.({quoted})"}, timeout=20)
-    r.raise_for_status()
-    return {row["item_id"]: float(row["all_in"] or 0) for row in r.json() if row.get("status") != "retry"}
+    out = {}
+    ids = list(dict.fromkeys(ids))
+    for k in range(0, len(ids), 150):                    # keep each URL short
+        quoted = ",".join('"' + i.replace('"', "") + '"' for i in ids[k:k + 150])
+        r = requests.get(f"{os.environ['SUPABASE_URL']}/rest/v1/{TABLE}", headers=sb_headers(), timeout=20,
+                         params={"select": "item_id,all_in,status,variant", "item_id": f"in.({quoted})"})
+        r.raise_for_status()
+        for row in r.json():
+            if row.get("status") == "ai_ok":
+                AI_OK[row["item_id"]] = row.get("variant") or ""
+            elif row.get("status") != "retry":
+                out[row["item_id"]] = float(row["all_in"] or 0)
+    return out
 
 
 def has_history() -> bool:
@@ -649,6 +743,61 @@ def full_scan_due() -> bool:
     return not every or datetime.now(timezone.utc).minute % every < CONFIG.get("run_every_min", 3)
 
 
+def screen_soft(old: dict, cand_ids: set, fresh: list) -> list[dict]:
+    """AI screen for listings only the word filters dropped. Rescued ones join `fresh` (they still face the
+    price maths, the listing-details checks and the photo check). Ones the AI rejects are returned as REJECT
+    rows so they're remembered and never screened twice."""
+    todo, seen = [], set()
+    for cat, c in SOFT:
+        if c["item_id"] in old or c["item_id"] in cand_ids or c["item_id"] in seen:
+            continue
+        seen.add(c["item_id"])
+        if c["item_id"] in AI_OK:                        # approved on an earlier run, waiting for a lookup slot
+            m = next((m for m in cat["models"] if m["name"] == AI_OK[c["item_id"]]), None)
+            fresh.append((cat, {**c, "lane": "EXACT" if m else "VAGUE", "model": m["name"] if m else None,
+                                "rescued": c["soft_reason"]}))
+            continue
+        todo.append((cat, c))
+    if not todo:
+        return []
+    cap = CONFIG.get("ai_screen_max", 60)
+    waiting = len(todo) - cap
+    todo = todo[:cap]
+    verdicts = ai_screen(todo)
+    if not verdicts:
+        LOG.append(f"🤖 AI screen unavailable: {len(todo)} filtered listing(s) wait for the next run")
+        return []
+    rejects, rescued, nos = [], 0, []
+    for cat, c in todo:
+        if c["item_id"] not in verdicts:
+            continue                                     # not answered: retried next run
+        v, model_name, reason, ai_model = verdicts[c["item_id"]]
+        if v == "yes":
+            model = next((m for m in cat["models"] if m["name"] == model_name), None)
+            if model:
+                target = buy_target(model["strong"], cat["post_out"], cat.get("max_buy"))
+                if c["all_in"] > target and not (c["best_offer"] and c["all_in"] <= target * (1 + CONFIG["offer_zone_pct"])):
+                    nos.append(f"{short(c)}: genuine {model_name}, but too pricey")
+                    rejects.append({**{k: v2 for k, v2 in c.items() if k not in DROP}, "verdict": "REJECT",
+                                    "status": "rejected", "ai_verdict": "yes", "ai_reason": "genuine but too pricey",
+                                    "ai_model": ai_model})
+                    continue
+            fresh.append((cat, {**c, "lane": "EXACT" if model else "VAGUE", "model": model["name"] if model else None,
+                                "rescued": c["soft_reason"]}))
+            rescued += 1
+            LOG.append(f"🤖✅ Rescued {short(c)} (filters said: {c['soft_reason']}; AI: {reason})")
+        else:
+            nos.append(f"{short(c)}: {reason}")
+            rejects.append({**{k: v2 for k, v2 in c.items() if k not in DROP}, "verdict": "REJECT",
+                            "status": "ai_screened_out", "ai_verdict": "no", "ai_reason": reason, "ai_model": ai_model})
+    LOG.append(f"🤖 AI screened {len(todo)} filtered listing(s): {rescued} rescued, {len(nos)} confirmed not worth it"
+               + (f" · {waiting} more next run" if waiting > 0 else ""))
+    LOG.extend(f"   ✖ {n}" for n in nos[:12])
+    if len(nos) > 12:
+        LOG.append(f"   … and {len(nos) - 12} more")
+    return rejects
+
+
 def main() -> int:
     token = ebay_token()
     full = full_scan_due()
@@ -678,18 +827,23 @@ def main() -> int:
         LOG.append(f"`{cat['id']}` {len(seen_ids)} checked → {passed} passed"
                    + (" · dropped: " + ", ".join(f"{n} {r}" for n, r in why) if why else ""))
 
-    old = already_seen([c["item_id"] for _, c in cands])
+    cand_ids = {c["item_id"] for _, c in cands}
+    old = already_seen(list(cand_ids) + [c["item_id"] for _, c in SOFT])
     # new listings, plus old ones whose price has dropped by £5+ since we last looked
     fresh = [(cat, c) for cat, c in cands if c["item_id"] not in old or c["all_in"] <= old[c["item_id"]] - 5]
-    fresh.sort(key=lambda x: (x[1]["lane"] != "EXACT", x[1]["all_in"]))          # exact first, then cheapest
     if cands:
         LOG.append(f"{len(cands) - len(fresh)} already seen before, {len(fresh)} new to look at")
+    screened_out = screen_soft(old, cand_ids, fresh)
+    fresh.sort(key=lambda x: (x[1]["lane"] != "EXACT", x[1]["all_in"]))          # exact first, then cheapest
 
     results, lookups = [], 0
     for cat, c in fresh:
         details = None
         if lookups >= CONFIG["max_detail_lookups"]:
             LOG.append(f"⏭️ {short(c)}: lookup limit reached, next run")
+            if c.get("rescued"):                         # remember the AI's yes so it isn't screened again
+                results.append({**{k: v for k, v in c.items() if k not in DROP}, "verdict": "REJECT",
+                                "status": "ai_ok", "variant": c.get("model")})
             continue                                    # never alert unchecked listings; they're picked up next run
         details = ebay_item(token, c["item_id"])
         lookups += 1
@@ -697,6 +851,8 @@ def main() -> int:
             LOG.append(f"❔ {short(c)}: listing details unavailable")
             continue
         row = score(cat, c, details)
+        if row and c.get("rescued"):
+            row["notes"] = f"🤖 Found by AI: the word filters skipped it ({c['rescued']})" + ("\n" + row["notes"] if row.get("notes") else "")
         if row and row["verdict"] == "DEAL" and not quiet(row):
             row["ai_verdict"], row["ai_reason"], row["ai_model"] = ai_check(cat, row, details)
             if row["ai_verdict"] == "no":
@@ -719,6 +875,12 @@ def main() -> int:
         elif details is not None:                       # remember rejects so we don't re-check them
             results.append({**{k: v for k, v in c.items() if k not in DROP},
                             "verdict": "REJECT", "status": "rejected"})
+    results += screened_out
+    by_id = {}
+    for r in results:                                   # one row per listing (a listing can turn up in two categories)
+        if r["item_id"] not in by_id or by_id[r["item_id"]]["verdict"] == "REJECT":
+            by_id[r["item_id"]] = r
+    results = list(by_id.values())
     print(f"{len(fresh)} new candidates, {lookups} detail lookups, "
           f"{sum(r['verdict'] != 'REJECT' for r in results)} alerts")
 
