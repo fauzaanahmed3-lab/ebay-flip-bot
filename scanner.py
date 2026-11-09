@@ -41,6 +41,7 @@ def _no(cat_id: str, reason: str):
     return None
 
 
+SCREENED_IN: dict[str, str] = {}     # item_id -> category it was AI-screened out of
 AI_OK: dict[str, str] = {}           # item_id -> model: AI-approved listings still waiting for a detail lookup
 SOFT: list[tuple[dict, dict]] = []   # (category, candidate) dropped only by word filters: sent to the AI screen
 
@@ -458,6 +459,8 @@ For each listing, decide if it is selling the PRODUCT for its category.
 Cosmetic wear, light scratches, no original box or missing manuals are fine.
 "no" = only an accessory, game, part, case, strap, controller, charger or box; a different model or product;
 faulty, broken, for parts, locked or banned; a "wanted" ad; or clearly not the product.
+Also "no" if an essential part is missing (e.g. VR headset without its controllers, console or handheld without
+its controller/power lead), because resale prices assume a complete unit.
 If "yes", set "m" to the matching model from that product's list when the title makes it clear, otherwise "".
 
 PRODUCTS
@@ -541,11 +544,14 @@ def already_seen(ids: list[str]) -> dict[str, float]:
     for k in range(0, len(ids), 150):                    # keep each URL short
         quoted = ",".join('"' + i.replace('"', "") + '"' for i in ids[k:k + 150])
         r = requests.get(f"{os.environ['SUPABASE_URL']}/rest/v1/{TABLE}", headers=sb_headers(), timeout=20,
-                         params={"select": "item_id,all_in,status,variant", "item_id": f"in.({quoted})"})
+                         params={"select": "item_id,all_in,status,variant,category", "item_id": f"in.({quoted})"})
         r.raise_for_status()
         for row in r.json():
             if row.get("status") == "ai_ok":
                 AI_OK[row["item_id"]] = row.get("variant") or ""
+            elif row.get("status") == "ai_screened_out":
+                SCREENED_IN[row["item_id"]] = row.get("category") or ""
+                out[row["item_id"]] = float(row["all_in"] or 0)
             elif row.get("status") != "retry":
                 out[row["item_id"]] = float(row["all_in"] or 0)
     return out
@@ -749,8 +755,10 @@ def screen_soft(old: dict, cand_ids: set, fresh: list) -> list[dict]:
     rows so they're remembered and never screened twice."""
     todo, seen = [], set()
     for cat, c in SOFT:
-        if c["item_id"] in old or c["item_id"] in cand_ids or c["item_id"] in seen:
+        if c["item_id"] in cand_ids or c["item_id"] in seen:
             continue
+        if c["item_id"] in old and SCREENED_IN.get(c["item_id"], cat["id"]) == cat["id"]:
+            continue                                     # already judged for this category
         seen.add(c["item_id"])
         if c["item_id"] in AI_OK:                        # approved on an earlier run, waiting for a lookup slot
             m = next((m for m in cat["models"] if m["name"] == AI_OK[c["item_id"]]), None)
@@ -830,7 +838,8 @@ def main() -> int:
     cand_ids = {c["item_id"] for _, c in cands}
     old = already_seen(list(cand_ids) + [c["item_id"] for _, c in SOFT])
     # new listings, plus old ones whose price has dropped by £5+ since we last looked
-    fresh = [(cat, c) for cat, c in cands if c["item_id"] not in old or c["all_in"] <= old[c["item_id"]] - 5]
+    fresh = [(cat, c) for cat, c in cands if c["item_id"] not in old or c["all_in"] <= old[c["item_id"]] - 5
+             or SCREENED_IN.get(c["item_id"], cat["id"]) != cat["id"]]
     if cands:
         LOG.append(f"{len(cands) - len(fresh)} already seen before, {len(fresh)} new to look at")
     screened_out = screen_soft(old, cand_ids, fresh)
