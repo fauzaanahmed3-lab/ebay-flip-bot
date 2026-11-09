@@ -450,3 +450,25 @@ fr = []
 check16("approved-earlier listing goes straight to checks, no AI call", (s.screen_soft({}, set(), fr), [(c["lane"], c["model"]) for _, c in fr]), ([], [("EXACT", "PS5 Slim Disc")]))
 s.requests.post = _old_post; s.AI_OK.clear(); s.SOFT.clear(); s.LOG.clear()
 print(f"AI pending: {sum(R16)}/{len(R16)} passed")
+
+# ---- an AI 'no' only applies to the category it was screened in ----
+R17 = []
+def check17(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R17.append(ok)
+s.SOFT.clear(); s.SCREENED_IN.clear()
+s.triage(CATS["ps5"], item("PS5 Slim Disc missing box", 380, 0, fb=200))
+_id = s.SOFT[0][1]["item_id"]
+s.SCREENED_IN[_id] = "xboxsx"                       # was screened out of a different category's search
+_os.environ["GEMINI_API_KEY"] = "test"
+called = []
+s.requests.post = lambda url, **k: (called.append(1), _R(200, {"candidates": [{"content": {"parts": [{"text": "[]"}]}}]}))[1]
+s.screen_soft({_id: 393.0}, set(), [])
+check17("rejected in another category -> judged again for this one", len(called), 1)
+called.clear(); s.SCREENED_IN[_id] = "ps5"
+s.screen_soft({_id: 393.0}, set(), [])
+check17("rejected in this category -> not screened again", len(called), 0)
+check17("screen prompt rejects incomplete units", "essential part is missing" in s.SCREEN_PROMPT, True)
+s.requests.post = _old_post; del _os.environ["GEMINI_API_KEY"]; s.SOFT.clear(); s.SCREENED_IN.clear(); s.LOG.clear()
+print(f"category-aware screening: {sum(R17)}/{len(R17)} passed")

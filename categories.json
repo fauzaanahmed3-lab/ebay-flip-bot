@@ -1001,6 +1001,6 @@
   "display model",
   "replacement"
  ],
- "ai_screen_max": 60,
+ "ai_screen_max": 120,
  "ai_screen_batch": 30
 }
