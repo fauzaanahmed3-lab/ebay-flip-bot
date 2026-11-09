@@ -372,3 +372,81 @@ check14("AI checks left adds the free models", "AI checks left today: ~988" in t
 check14("reset shown in UK time", "Resets 08:00 UK (in 8h 20m)" in txt, True)
 check14("counts AI attempts, not 429s", (s.USAGE.get("gemini-3.1-flash-lite", 0) >= 1, s.LIMITED.get("gemini-3.5-flash-lite", 0) >= 1), (True, True))
 print(f"usage bar: {sum(R14)}/{len(R14)} passed")
+
+# ---- AI screening of word-filter drops (9 Nov) ----
+R15 = []
+def check15(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R15.append(ok)
+r = s.triage(CATS["ps5pro"], item("Sony PS5 Pro 2TB with 2 controllers", 780, 0, fb=200))
+check15("'PS5 Pro with 2 controllers' is now a real candidate", (r or {}).get("lane"), "EXACT")
+s.SOFT.clear()
+check15("'missing original box' isn't thrown away...", s.triage(CATS["ps5"], item("PS5 Slim Disc console, missing original box", 380, 0, fb=200)), None)
+check15("...it goes to the AI screen", [(c["soft_reason"]) for _, c in s.SOFT], ["junk/wrong item"])
+s.SOFT.clear()
+s.triage(CATS["ps5"], item("PS5 Slim bundle with VR2 headset", 380, 0, fb=200))
+check15("console + VR bundle goes to the AI screen", len(s.SOFT), 1)
+s.SOFT.clear()
+check15("faulty stays a hard reject (no AI)", (s.triage(CATS["ps5"], item("PS5 Slim 825GB faulty", 200, 0, fb=200)), len(s.SOFT)), (None, 0))
+check15("overpriced never reaches the AI", (s.triage(CATS["ps5"], item("PS5 Slim missing box", 700, 0, fb=200)), len(s.SOFT)), (None, 0))
+check15("weak seller never reaches the AI", (s.triage(CATS["ps5"], item("PS5 Slim missing box", 380, 0, fb=0)), len(s.SOFT)), (None, 0))
+
+_os.environ["GEMINI_API_KEY"] = "test"
+def _screen_post(url, **k):
+    if "3.5" in url: return _R(429)
+    return _R(200, {"candidates": [{"content": {"parts": [{"text": _json.dumps([
+        {"i": 0, "v": "yes", "m": "PS5 Slim Disc", "r": "console, box missing"},
+        {"i": 1, "v": "no", "m": "", "r": "controller only"},
+        {"i": 2, "v": "yes", "m": "Made-up model", "r": "real console"}])}]}}]})
+s.requests.post = _screen_post
+s.SOFT.clear()
+s.triage(CATS["ps5"], item("PS5 Slim Disc missing box", 380, 0, fb=200))
+s.triage(CATS["ps5"], item("PS5 slim controller replacement", 380, 0, fb=200))
+s.triage(CATS["ps5"], item("PlayStation 5 slim damaged box", 380, 0, fb=200))
+got = s.ai_screen(list(s.SOFT))
+ids = [c["item_id"] for _, c in s.SOFT]
+check15("screen falls back to 3.1 when 3.5 is out", got[ids[0]][3], "gemini-3.1-flash-lite")
+check15("yes + model parsed", got[ids[0]][:2], ("yes", "PS5 Slim Disc"))
+check15("no parsed", got[ids[1]][0], "no")
+check15("invented model name is ignored", got[ids[2]][:2], ("yes", ""))
+
+fresh = []
+s.LOG.clear()
+rej = s.screen_soft({}, set(), fresh)
+check15("rescued items join the normal checks", [(c["lane"], c["model"], bool(c.get("rescued"))) for _, c in fresh],
+        [("EXACT", "PS5 Slim Disc", True), ("VAGUE", None, True)])
+check15("AI 'no' is saved so it's never screened twice", [(r["status"], r["ai_verdict"]) for r in rej], [("ai_screened_out", "no")])
+check15("saved rows hold no working-only fields", any(k in rej[0] for k in s.DROP), False)
+check15("logs say what happened", any("2 rescued, 1 confirmed" in l for l in s.LOG), True)
+fresh2 = []
+check15("already-screened listings are skipped", (s.screen_soft({i: 0 for i in ids}, set(), fresh2), fresh2), ([], []))
+s.requests.post = lambda url, **k: _R(429)
+fresh3 = []
+check15("Gemini unavailable -> nothing saved, retried next run", (s.screen_soft({}, set(), fresh3), fresh3), ([], []))
+def _pricey(url, **k):
+    return _R(200, {"candidates": [{"content": {"parts": [{"text": _json.dumps([{"i": 0, "v": "yes", "m": "PS5 Slim Digital", "r": "ok"}])}]}}]})
+s.requests.post = _pricey
+s.SOFT.clear()
+s.triage(CATS["ps5"], item("PS5 Slim missing box", 400, 0, fb=200))
+fresh4 = []
+rej4 = s.screen_soft({}, set(), fresh4)
+check15("genuine but over that model's target -> rejected by the maths", (fresh4, rej4[0]["ai_reason"] if rej4 else None), ([], "genuine but too pricey"))
+s.requests.post = _old_post; del _os.environ["GEMINI_API_KEY"]; s.SOFT.clear(); s.LOG.clear()
+print(f"AI screening: {sum(R15)}/{len(R15)} passed")
+
+# ---- AI-approved listings waiting for a lookup aren't screened twice ----
+R16 = []
+def check16(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R16.append(ok)
+s.SOFT.clear()
+s.triage(CATS["ps5"], item("PS5 Slim Disc missing box", 380, 0, fb=200))
+_id = s.SOFT[0][1]["item_id"]
+s.AI_OK[_id] = "PS5 Slim Disc"
+s.requests.post = lambda url, **k: (_ for _ in ()).throw(AssertionError("AI should not be called"))
+fr = []
+check16("approved-earlier listing goes straight to checks, no AI call", (s.screen_soft({}, set(), fr), [(c["lane"], c["model"]) for _, c in fr]), ([], [("EXACT", "PS5 Slim Disc")]))
+s.requests.post = _old_post; s.AI_OK.clear(); s.SOFT.clear(); s.LOG.clear()
+print(f"AI pending: {sum(R16)}/{len(R16)} passed")

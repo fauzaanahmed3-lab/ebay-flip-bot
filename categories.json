@@ -14,17 +14,10 @@
   "cracked",
   "not working",
   "untested",
-  "read description",
-  "see desc",
-  "please read",
   "box only",
   "empty box",
-  "shell",
   "no sound",
   "drift",
-  "scratched",
-  "missing",
-  "damaged",
   "water damage",
   "cover only",
   "charger only",
@@ -33,12 +26,10 @@
   "job lot",
   "dummy",
   "replica",
-  "display model",
   "for repair",
   "spares or repair",
   "icloud",
   "frp",
-  "replacement",
   "snapped",
   "pink line",
   "dekoni"
@@ -94,7 +85,8 @@
     "quest ?3s\\b",
     "quest ?2\\b"
    ],
-   "require_any": "\\bheadset\\b|\\bcontrollers?\\b|\\b(128|256|512) ?gb\\b|\\bstandalone\\b|\\bboxed\\b|\\bbundle\\b|\\bconsole\\b|\\bmixed reality\\b"
+   "require_any": "\\bheadset\\b|\\bcontrollers?\\b|\\b(128|256|512) ?gb\\b|\\bstandalone\\b|\\bboxed\\b|\\bbundle\\b|\\bconsole\\b|\\bmixed reality\\b",
+   "ai_hint": "Meta Quest 3 VR headset (NOT Quest 3S, Quest 2 or Quest Pro). The headset itself must be included."
   },
   {
    "id": "steamdeck",
@@ -136,7 +128,8 @@
    ],
    "wrong_specs": [
     "\\blcd\\b"
-   ]
+   ],
+   "ai_hint": "Valve Steam Deck OLED handheld, 512GB or 1TB (NOT the LCD model, not 64/256GB)."
   },
   {
    "id": "sony",
@@ -191,7 +184,8 @@
     "earbud",
     "in.?ear",
     "\\bwf\\b"
-   ]
+   ],
+   "ai_hint": "Sony WH-1000XM5 or WH-1000XM6 over-ear headphones (NOT XM4 or older, not earbuds)."
   },
   {
    "id": "bose",
@@ -243,7 +237,8 @@
    "wrong_specs": [
     "earbud",
     "in.?ear"
-   ]
+   ],
+   "ai_hint": "Bose QuietComfort Ultra over-ear headphones, gen 1 or 2 (NOT QC45/QC35/QC SC, not earbuds)."
   },
   {
    "id": "momentum4",
@@ -492,7 +487,8 @@
     }
    ],
    "price_max": 198,
-   "require_any": "\\bheadset\\b|\\bcontrollers?\\b|\\b(128|256|512) ?gb\\b|\\bstandalone\\b|\\bboxed\\b|\\bbundle\\b|\\bconsole\\b|\\bmixed reality\\b"
+   "require_any": "\\bheadset\\b|\\bcontrollers?\\b|\\b(128|256|512) ?gb\\b|\\bstandalone\\b|\\bboxed\\b|\\bbundle\\b|\\bconsole\\b|\\bmixed reality\\b",
+   "ai_hint": "Meta Quest 3S VR headset (NOT Quest 3, Quest 2 or Quest Pro). The headset itself must be included."
   },
   {
    "id": "switcholed",
@@ -590,7 +586,8 @@
     }
    ],
    "price_max": 321,
-   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b"
+   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
+   "ai_hint": "Nintendo Switch 2 console (NOT Switch OLED, Lite or the original Switch)."
   },
   {
    "id": "osmo3",
@@ -633,7 +630,8 @@
      "note": "Check the gimbal moves freely and the screen rotates"
     }
    ],
-   "price_max": 295
+   "price_max": 295,
+   "ai_hint": "DJI Osmo Pocket 3 camera, standard or Creator Combo (NOT Pocket 2)."
   },
   {
    "id": "ps5",
@@ -717,7 +715,8 @@
     }
    ],
    "price_max": 448,
-   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b"
+   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
+   "ai_hint": "Sony PlayStation 5 console, Slim or original, disc or digital (NOT PS5 Pro, not PS4)."
   },
   {
    "id": "xboxsx",
@@ -786,7 +785,8 @@
     }
    ],
    "price_max": 463,
-   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b"
+   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
+   "ai_hint": "Microsoft Xbox Series X console (NOT Series S, Xbox One or 360)."
   },
   {
    "id": "xboxss",
@@ -858,7 +858,8 @@
     }
    ],
    "price_max": 229,
-   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b"
+   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
+   "ai_hint": "Microsoft Xbox Series S console (NOT Series X, Xbox One or 360)."
   },
   {
    "id": "ps5pro",
@@ -912,7 +913,6 @@
     "\\bcodes?\\b",
     "dualsense edge",
     "pro controller",
-    "controller",
     "\\bportal\\b"
    ],
    "wrong_specs": [],
@@ -926,7 +926,8 @@
     }
    ],
    "price_max": 912,
-   "fast": true
+   "fast": true,
+   "ai_hint": "Sony PlayStation 5 Pro console, 2TB (NOT a regular PS5, not a DualSense Edge or other controller on its own)."
   }
  ],
  "phone_rules": {
@@ -988,5 +989,18 @@
   "gemini-3.1-flash-lite": 500,
   "gemini-2.5-flash-lite": 20,
   "ebay": 5000
- }
+ },
+ "junk_soft": [
+  "read description",
+  "see desc",
+  "please read",
+  "shell",
+  "scratched",
+  "missing",
+  "damaged",
+  "display model",
+  "replacement"
+ ],
+ "ai_screen_max": 60,
+ "ai_screen_batch": 30
 }
