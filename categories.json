@@ -86,7 +86,11 @@
     "quest ?2\\b"
    ],
    "require_any": "\\bheadset\\b|\\bcontrollers?\\b|\\b(128|256|512) ?gb\\b|\\bstandalone\\b|\\bboxed\\b|\\bbundle\\b|\\bconsole\\b|\\bmixed reality\\b",
-   "ai_hint": "Meta Quest 3 VR headset (NOT Quest 3S, Quest 2 or Quest Pro). The headset itself must be included."
+   "ai_hint": "Meta Quest 3 VR headset (NOT Quest 3S, Quest 2 or Quest Pro). The headset itself must be included.",
+   "fast": true,
+   "fast_queries": [
+    "meta quest 3"
+   ]
   },
   {
    "id": "steamdeck",
@@ -134,7 +138,7 @@
   {
    "id": "sony",
    "label": "Sony WH-1000X headphones",
-   "enabled": true,
+   "enabled": false,
    "weekly_sales": 38,
    "queries": [
     "sony wh-1000xm6",
@@ -190,7 +194,7 @@
   {
    "id": "bose",
    "label": "Bose QC Ultra headphones",
-   "enabled": true,
+   "enabled": false,
    "weekly_sales": 9,
    "queries": [
     "bose quietcomfort ultra headphones",
@@ -592,7 +596,7 @@
   {
    "id": "osmo3",
    "label": "DJI Osmo Pocket 3",
-   "enabled": true,
+   "enabled": false,
    "weekly_sales": 18,
    "queries": [
     "dji osmo pocket 3"
