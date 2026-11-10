@@ -1,1010 +1,1020 @@
 {
- "packaging_cost": 1,
- "offer_zone_pct": 0.12,
- "max_detail_lookups": 10,
- "unconfirmed_extra_margin": 30,
- "hot_ratio": 1.5,
- "junk": [
-  "faulty",
-  "spares",
-  "for parts",
-  "parts only",
-  "repair",
-  "broken",
-  "cracked",
-  "not working",
-  "untested",
-  "box only",
-  "empty box",
-  "no sound",
-  "drift",
-  "water damage",
-  "cover only",
-  "charger only",
-  "cable only",
-  "needs attention",
-  "job lot",
-  "dummy",
-  "replica",
-  "for repair",
-  "spares or repair",
-  "icloud",
-  "frp",
-  "snapped",
-  "pink line",
-  "dekoni"
- ],
- "categories": [
-  {
-   "id": "quest3",
-   "label": "Meta Quest 3",
-   "enabled": true,
-   "weekly_sales": 54,
-   "queries": [
-    "meta quest 3",
-    "meta quest vr headset"
-   ],
-   "category_hint": [
-    "virtual reality",
-    "vr",
-    "video game"
-   ],
-   "price_min": 120,
-   "price_max": 321,
-   "post_out": 8,
-   "family": "(meta|oculus).*(quest|vr|headset)|quest.*(vr|headset)",
-   "wrong": [
-    "quest ?3s\\b",
-    "quest ?2\\b",
-    "quest ?pro",
-    "controllers? only",
-    "strap only",
-    "battery strap",
-    "headset only",
-    "no controllers",
-    "without controllers",
-    "missing controller"
-   ],
-   "models": [
-    {
-     "name": "Quest 3 · 512GB",
-     "match": "quest ?3\\b(?!s).*512|512.*quest ?3\\b(?!s)",
-     "strong": 345,
-     "typical": 313,
-     "note": "Ask the seller to confirm it powers on, tracks properly and both controllers work."
-    },
-    {
-     "name": "Quest 3 · 128GB or storage not stated",
-     "match": "quest ?3\\b(?!s)",
-     "strong": 285,
-     "typical": 247,
-     "note": "Ask the seller to confirm it powers on, tracks properly and both controllers work."
-    }
-   ],
-   "wrong_specs": [
-    "quest ?3s\\b",
-    "quest ?2\\b"
-   ],
-   "require_any": "\\bheadset\\b|\\bcontrollers?\\b|\\b(128|256|512) ?gb\\b|\\bstandalone\\b|\\bboxed\\b|\\bbundle\\b|\\bconsole\\b|\\bmixed reality\\b",
-   "ai_hint": "Meta Quest 3 VR headset (NOT Quest 3S, Quest 2 or Quest Pro). The headset itself must be included.",
-   "fast": true,
-   "fast_queries": [
-    "meta quest 3"
-   ]
-  },
-  {
-   "id": "steamdeck",
-   "label": "Steam Deck OLED",
-   "enabled": true,
-   "weekly_sales": 36,
-   "queries": [
-    "steam deck oled",
-    "steam deck"
-   ],
-   "category_hint": [
-    "console",
-    "video game"
-   ],
-   "price_min": 250,
-   "price_max": 499,
-   "post_out": 9,
-   "family": "steam ?deck",
-   "wrong": [
-    "\\blcd\\b",
-    "64 ?gb",
-    "256 ?gb",
-    "dock only",
-    "case only"
-   ],
-   "models": [
-    {
-     "name": "Steam Deck OLED 1TB",
-     "match": "oled.*1 ?tb|1 ?tb.*oled",
-     "strong": 555,
-     "typical": 540
-    },
-    {
-     "name": "Steam Deck OLED 512GB",
-     "match": "oled",
-     "strong": 530,
-     "typical": 480
-    }
-   ],
-   "wrong_specs": [
-    "\\blcd\\b"
-   ],
-   "ai_hint": "Valve Steam Deck OLED handheld, 512GB or 1TB (NOT the LCD model, not 64/256GB)."
-  },
-  {
-   "id": "sony",
-   "label": "Sony WH-1000X headphones",
-   "enabled": false,
-   "weekly_sales": 38,
-   "queries": [
-    "sony wh-1000xm6",
-    "sony wh-1000xm5",
-    "sony noise cancelling headphones"
-   ],
-   "category_hint": [
-    "headphone"
-   ],
-   "price_min": 50,
-   "price_max": 205,
-   "post_out": 6,
-   "family": "sony.*(headphone|noise cancel|over.?ear|wireless)",
-   "wrong": [
-    "\\bwf\\b",
-    "earbud",
-    "in.?ear",
-    "ch ?7\\d0",
-    "\\bult\\b",
-    "zx\\d",
-    "headband (only|assembly)",
-    "replacement (headband|pads|cushions)",
-    "(ear ?)?pads? only",
-    "cushions? only",
-    "xm[234]",
-    "\\bxb ?\\d",
-    "\\bmdr",
-    "wh ?ch",
-    "\\bult"
-   ],
-   "models": [
-    {
-     "name": "Sony WH-1000XM6",
-     "match": "xm6",
-     "strong": 240,
-     "typical": 201
-    },
-    {
-     "name": "Sony WH-1000XM5",
-     "match": "xm5",
-     "strong": 137,
-     "typical": 107
-    }
-   ],
-   "wrong_specs": [
-    "xm[234]\\b",
-    "earbud",
-    "in.?ear",
-    "\\bwf\\b"
-   ],
-   "ai_hint": "Sony WH-1000XM5 or WH-1000XM6 over-ear headphones (NOT XM4 or older, not earbuds)."
-  },
-  {
-   "id": "bose",
-   "label": "Bose QC Ultra headphones",
-   "enabled": false,
-   "weekly_sales": 9,
-   "queries": [
-    "bose quietcomfort ultra headphones",
-    "bose noise cancelling headphones"
-   ],
-   "category_hint": [
-    "headphone"
-   ],
-   "price_min": 70,
-   "price_max": 228,
-   "post_out": 6,
-   "family": "bose.*(headphone|noise cancel|over.?ear|quietcomfort|qc)",
-   "wrong": [
-    "earbud",
-    "in.?ear",
-    "\\b700\\b",
-    "sport",
-    "soundlink",
-    "ultra open",
-    "headband (only|assembly)",
-    "replacement (headband|pads|cushions)",
-    "(ear ?)?pads? only",
-    "cushions? only",
-    "qc ?(15|20|25|30|35|45)\\b",
-    "\\bqc ?sc\\b",
-    "quietcontrol",
-    "\\bqc\\b(?!.*ultra)",
-    "\\bnc ?700\\b"
-   ],
-   "models": [
-    {
-     "name": "Bose QC Ultra Gen 2",
-     "match": "ultra.*(2nd|gen ?2|second)|(2nd|gen ?2|second).*ultra",
-     "strong": 260,
-     "typical": 213
-    },
-    {
-     "name": "Bose QC Ultra Gen 1",
-     "match": "ultra",
-     "strong": 185,
-     "typical": 152
-    }
-   ],
-   "wrong_specs": [
-    "earbud",
-    "in.?ear"
-   ],
-   "ai_hint": "Bose QuietComfort Ultra over-ear headphones, gen 1 or 2 (NOT QC45/QC35/QC SC, not earbuds)."
-  },
-  {
-   "id": "momentum4",
-   "label": "Sennheiser Momentum 4",
-   "enabled": false,
-   "weekly_sales": 12,
-   "queries": [
-    "sennheiser momentum 4"
-   ],
-   "category_hint": [
-    "headphone"
-   ],
-   "price_min": 50,
-   "price_max": 93,
-   "post_out": 6,
-   "family": "sennheiser.*(momentum|headphone)",
-   "wrong": [
-    "momentum ?(true|tw|sport|2|3)\\b",
-    "\\bhd ?\\d",
-    "earbud",
-    "in.?ear",
-    "on.?ear",
-    "headband (only|assembly)",
-    "replacement (headband|pads|cushions)",
-    "(ear ?)?pads? only",
-    "cushions? only"
-   ],
-   "models": [
-    {
-     "name": "Sennheiser Momentum 4",
-     "match": "momentum ?4",
-     "strong": 140,
-     "typical": 110
-    }
-   ],
-   "wrong_specs": [
-    "true wireless",
-    "earbud",
-    "in.?ear"
-   ]
-  },
-  {
-   "id": "supersonic",
-   "label": "Dyson Supersonic",
-   "enabled": false,
-   "weekly_sales": 4,
-   "queries": [
-    "dyson supersonic"
-   ],
-   "category_hint": [
-    "hair"
-   ],
-   "price_min": 35,
-   "price_max": 76,
-   "post_out": 7,
-   "family": "dyson.*(hair|dryer)",
-   "wrong": [
-    "airwrap",
-    "corrale",
-    "attachment",
-    "diffuser",
-    "nozzle",
-    "\\bstand\\b",
-    "filter",
-    "motor",
-    "coil",
-    "motherboard",
-    "pcb",
-    "presentation case",
-    "storage case",
-    "case only"
-   ],
-   "models": [
-    {
-     "name": "Dyson Supersonic (older HD01-HD03)",
-     "match": "hd ?0[1-3]\\b",
-     "strong": 90,
-     "typical": 60,
-     "note": "Older model: resells lower than the HD07/HD08"
-    },
-    {
-     "name": "Dyson Supersonic",
-     "match": "supersonic",
-     "strong": 125,
-     "note": "Dyson fakes exist: check the serial sticker and photos",
-     "typical": 80
-    }
-   ],
-   "wrong_specs": [
-    "airwrap",
-    "corrale"
-   ]
-  },
-  {
-   "id": "oneplus",
-   "label": "OnePlus 13 / 15",
-   "enabled": false,
-   "phone": true,
-   "weekly_sales": 11,
-   "queries": [
-    "oneplus 15",
-    "oneplus 13"
-   ],
-   "category_hint": [
-    "mobile",
-    "phone"
-   ],
-   "price_min": 250,
-   "price_max": 560,
-   "post_out": 6,
-   "family": "oneplus",
-   "wrong": [
-    "oneplus ?(1[0-2]|[1-9])\\b",
-    "\\b1[35] ?[rs]\\b",
-    "nord",
-    "\\bace\\b",
-    "\\bcase\\b",
-    "screen protector",
-    "\\bpad\\b",
-    "buds",
-    "watch"
-   ],
-   "wrong_specs": [
-    "\\b1[35] ?r\\b",
-    "nord"
-   ],
-   "models": [
-    {
-     "name": "OnePlus 15 512GB",
-     "match": "oneplus ?15\\b.*(512|1 ?tb)|(512|1 ?tb).*oneplus ?15\\b",
-     "strong": 715,
-     "typical": 679
-    },
-    {
-     "name": "OnePlus 15 256GB",
-     "match": "oneplus ?15\\b",
-     "strong": 625,
-     "note": "Storage not stated: priced as 256GB",
-     "typical": 537
-    },
-    {
-     "name": "OnePlus 13 512GB",
-     "match": "oneplus ?13\\b.*(512|1 ?tb)|(512|1 ?tb).*oneplus ?13\\b",
-     "strong": 565,
-     "typical": 500
-    },
-    {
-     "name": "OnePlus 13 256GB",
-     "match": "oneplus ?13\\b",
-     "strong": 460,
-     "note": "Storage not stated: priced as 256GB. OnePlus 13 sells slower (~4-6/week)",
-     "typical": 435
-    }
-   ]
-  },
-  {
-   "id": "samsung",
-   "label": "Samsung Galaxy S25 Ultra",
-   "enabled": false,
-   "phone": true,
-   "weekly_sales": 45,
-   "queries": [
-    "samsung galaxy s25 ultra"
-   ],
-   "category_hint": [
-    "mobile",
-    "phone"
-   ],
-   "price_min": 300,
-   "price_max": 560,
-   "post_out": 6,
-   "family": "samsung|galaxy",
-   "wrong": [
-    "\\bfe\\b",
-    "flip",
-    "fold",
-    "\\btab\\b",
-    "watch",
-    "buds",
-    "s2[0-4]\\b",
-    "\\bcase\\b",
-    "screen protector",
-    "dummy"
-   ],
-   "wrong_specs": [
-    "\\bfe\\b"
-   ],
-   "models": [
-    {
-     "name": "Galaxy S25 Ultra 512GB",
-     "match": "s25 ?ultra.*(512|1 ?tb)|(512|1 ?tb).*s25 ?ultra",
-     "strong": 615,
-     "typical": 588
-    },
-    {
-     "name": "Galaxy S25 Ultra 256GB",
-     "match": "s25 ?ultra",
-     "strong": 560,
-     "note": "Storage not stated: priced as 256GB",
-     "typical": 507
-    }
-   ]
-  },
-  {
-   "id": "quest3s",
-   "label": "Meta Quest 3S",
-   "enabled": true,
-   "weekly_sales": 47,
-   "queries": [
-    "meta quest 3s"
-   ],
-   "category_hint": [
-    "virtual reality",
-    "vr",
-    "video game"
-   ],
-   "price_min": 90,
-   "post_out": 8,
-   "family": "quest ?3s",
-   "wrong": [
-    "quest ?3\\b(?!s)",
-    "quest ?2\\b",
-    "quest ?pro",
-    "controllers? only",
-    "headset only",
-    "no controllers",
-    "without controllers",
-    "missing controller"
-   ],
-   "wrong_specs": [
-    "quest ?3\\b(?!s)"
-   ],
-   "models": [
-    {
-     "name": "Quest 3S 256GB",
-     "match": "quest ?3s.*256|256.*quest ?3s",
-     "strong": 235,
-     "typical": 205
-    },
-    {
-     "name": "Quest 3S 128GB",
-     "match": "quest ?3s",
-     "strong": 205,
-     "typical": 175,
-     "note": "Storage not stated: priced as 128GB"
-    }
-   ],
-   "price_max": 198,
-   "require_any": "\\bheadset\\b|\\bcontrollers?\\b|\\b(128|256|512) ?gb\\b|\\bstandalone\\b|\\bboxed\\b|\\bbundle\\b|\\bconsole\\b|\\bmixed reality\\b",
-   "ai_hint": "Meta Quest 3S VR headset (NOT Quest 3, Quest 2 or Quest Pro). The headset itself must be included."
-  },
-  {
-   "id": "switcholed",
-   "label": "Nintendo Switch OLED",
-   "enabled": false,
-   "weekly_sales": 24,
-   "queries": [
-    "nintendo switch oled"
-   ],
-   "category_hint": [
-    "console",
-    "video game"
-   ],
-   "price_min": 60,
-   "post_out": 8,
-   "family": "switch.*oled|oled.*switch",
-   "wrong": [
-    "\\blite\\b",
-    "switch ?2\\b",
-    "console only",
-    "tablet only",
-    "screen only",
-    "no dock",
-    "without dock",
-    "no joy ?cons?",
-    "joy ?cons? only",
-    "dock only",
-    "banned",
-    "\\bgames? only"
-   ],
-   "wrong_specs": [
-    "\\blite\\b"
-   ],
-   "models": [
-    {
-     "name": "Switch OLED",
-     "match": "oled",
-     "strong": 180,
-     "typical": 146,
-     "note": "Test Joy-Cons for drift and check the dock works"
-    }
-   ],
-   "price_max": 136
-  },
-  {
-   "id": "switch2",
-   "label": "Nintendo Switch 2",
-   "enabled": true,
-   "weekly_sales": 214,
-   "queries": [
-    "nintendo switch 2 console"
-   ],
-   "category_hint": [
-    "console",
-    "video game"
-   ],
-   "price_min": 200,
-   "post_out": 8,
-   "family": "switch ?2\\b",
-   "wrong": [
-    "\\blite\\b",
-    "\\boled\\b",
-    "console only",
-    "tablet only",
-    "no dock",
-    "without dock",
-    "dock only",
-    "joy ?cons? only",
-    "\\bgames? only",
-    "mario kart only",
-    "amiibo",
-    "banned",
-    "expansion",
-    "storage card",
-    "\\bssd\\b",
-    "steel ?book",
-    "pre ?order",
-    "\\bvr ?2?\\b",
-    "psvr",
-    "headset",
-    "\\bportal\\b",
-    "\\bcamera\\b",
-    "face ?plates?",
-    "\\bgame only\\b",
-    "\\bcodes?\\b"
-   ],
-   "wrong_specs": [],
-   "models": [
-    {
-     "name": "Switch 2",
-     "match": "switch ?2\\b",
-     "strong": 345,
-     "typical": 327,
-     "note": "New model: check it isn't linked to the seller's account"
-    }
-   ],
-   "price_max": 321,
-   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
-   "ai_hint": "Nintendo Switch 2 console (NOT Switch OLED, Lite or the original Switch)."
-  },
-  {
-   "id": "osmo3",
-   "label": "DJI Osmo Pocket 3",
-   "enabled": false,
-   "weekly_sales": 18,
-   "queries": [
-    "dji osmo pocket 3"
-   ],
-   "category_hint": [
-    "camera",
-    "camcorder",
-    "video"
-   ],
-   "price_min": 120,
-   "post_out": 6,
-   "family": "pocket ?3",
-   "wrong": [
-    "\\bfilters?\\b",
-    "\\bmount\\b",
-    "handle only",
-    "\\bcase\\b(?! included)",
-    "osmo pocket ?2",
-    "\\bpocket ?2\\b",
-    "lens only"
-   ],
-   "wrong_specs": [],
-   "models": [
-    {
-     "name": "Osmo Pocket 3 Creator Combo",
-     "match": "creator",
-     "strong": 320,
-     "typical": 290
-    },
-    {
-     "name": "Osmo Pocket 3",
-     "match": "pocket ?3",
-     "strong": 250,
-     "typical": 236,
-     "note": "Check the gimbal moves freely and the screen rotates"
-    }
-   ],
-   "price_max": 295,
-   "ai_hint": "DJI Osmo Pocket 3 camera, standard or Creator Combo (NOT Pocket 2)."
-  },
-  {
-   "id": "ps5",
-   "label": "PlayStation 5",
-   "enabled": true,
-   "weekly_sales": 350,
-   "queries": [
-    "ps5 console",
-    "playstation 5 console"
-   ],
-   "category_hint": [
-    "console",
-    "video game"
-   ],
-   "price_min": 200,
-   "post_out": 11,
-   "family": "\\b(ps5|playstation ?5)\\b",
-   "wrong": [
-    "controllers? only",
-    "pads? only",
-    "drive only",
-    "disc drive\\b(?!.*console)",
-    "\\bstand\\b(?! included)",
-    "\\bcase\\b(?! included)",
-    "\\bskin\\b",
-    "cover plates?",
-    "faceplates?",
-    "\\bgames? only",
-    "no controller",
-    "without controller",
-    "\\bbanned\\b",
-    "console only(?=.*no)",
-    "digital key",
-    "\\bcode\\b",
-    "\\bpro\\b",
-    "portal",
-    "\\bps4\\b",
-    "\\bps5 games?\\b",
-    "expansion",
-    "storage card",
-    "\\bssd\\b",
-    "steel ?book",
-    "pre ?order",
-    "\\bvr ?2?\\b",
-    "psvr",
-    "headset",
-    "\\bportal\\b",
-    "\\bcamera\\b",
-    "face ?plates?",
-    "\\bgame only\\b",
-    "\\bcodes?\\b"
-   ],
-   "wrong_specs": [
-    "\\bpro\\b"
-   ],
-   "models": [
-    {
-     "name": "PS5 Slim Digital",
-     "match": "slim.*digital|digital.*slim",
-     "strong": 445,
-     "typical": 426
-    },
-    {
-     "name": "PS5 Slim Disc",
-     "match": "slim",
-     "strong": 495,
-     "typical": 466
-    },
-    {
-     "name": "PS5 Digital (original)",
-     "match": "digital",
-     "strong": 410,
-     "typical": 394
-    },
-    {
-     "name": "PS5 Disc (original)",
-     "match": "\\b(ps5|playstation ?5)\\b",
-     "strong": 445,
-     "typical": 425,
-     "note": "Title doesn't say slim or digital: confirm the model from the photos."
-    }
-   ],
-   "price_max": 448,
-   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
-   "ai_hint": "Sony PlayStation 5 console, Slim or original, disc or digital (NOT PS5 Pro, not PS4)."
-  },
-  {
-   "id": "xboxsx",
-   "label": "Xbox Series X",
-   "enabled": true,
-   "weekly_sales": 320,
-   "queries": [
-    "xbox series x console"
-   ],
-   "category_hint": [
-    "console",
-    "video game"
-   ],
-   "price_min": 200,
-   "post_out": 11,
-   "family": "series ?x\\b",
-   "wrong": [
-    "controllers? only",
-    "pads? only",
-    "drive only",
-    "disc drive\\b(?!.*console)",
-    "\\bstand\\b(?! included)",
-    "\\bcase\\b(?! included)",
-    "\\bskin\\b",
-    "cover plates?",
-    "faceplates?",
-    "\\bgames? only",
-    "no controller",
-    "without controller",
-    "\\bbanned\\b",
-    "console only(?=.*no)",
-    "digital key",
-    "\\bcode\\b",
-    "series ?s\\b",
-    "\\b360\\b",
-    "xbox one\\b",
-    "expansion",
-    "storage card",
-    "\\bssd\\b",
-    "steel ?book",
-    "pre ?order",
-    "\\bvr ?2?\\b",
-    "psvr",
-    "headset",
-    "\\bportal\\b",
-    "\\bcamera\\b",
-    "face ?plates?",
-    "\\bgame only\\b",
-    "\\bcodes?\\b"
-   ],
-   "wrong_specs": [
-    "series ?s\\b"
-   ],
-   "models": [
-    {
-     "name": "Series X Digital",
-     "match": "digital",
-     "strong": 460,
-     "typical": 422
-    },
-    {
-     "name": "Series X (disc)",
-     "match": "series ?x",
-     "strong": 525,
-     "typical": 480
-    }
-   ],
-   "price_max": 463,
-   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
-   "ai_hint": "Microsoft Xbox Series X console (NOT Series S, Xbox One or 360)."
-  },
-  {
-   "id": "xboxss",
-   "label": "Xbox Series S",
-   "enabled": true,
-   "weekly_sales": 450,
-   "queries": [
-    "xbox series s console"
-   ],
-   "category_hint": [
-    "console",
-    "video game"
-   ],
-   "price_min": 110,
-   "post_out": 10,
-   "family": "series ?s\\b",
-   "wrong": [
-    "controllers? only",
-    "pads? only",
-    "drive only",
-    "disc drive\\b(?!.*console)",
-    "\\bstand\\b(?! included)",
-    "\\bcase\\b(?! included)",
-    "\\bskin\\b",
-    "cover plates?",
-    "faceplates?",
-    "\\bgames? only",
-    "no controller",
-    "without controller",
-    "\\bbanned\\b",
-    "console only(?=.*no)",
-    "digital key",
-    "\\bcode\\b",
-    "\\b360\\b",
-    "series ?x\\b",
-    "xbox one\\b",
-    "\\bone s\\b",
-    "expansion card",
-    "storage card",
-    "expansion",
-    "\\bssd\\b",
-    "steel ?book",
-    "pre ?order",
-    "\\bvr ?2?\\b",
-    "psvr",
-    "headset",
-    "\\bportal\\b",
-    "\\bcamera\\b",
-    "face ?plates?",
-    "\\bgame only\\b",
-    "\\bcodes?\\b"
-   ],
-   "wrong_specs": [
-    "series ?x\\b"
-   ],
-   "models": [
-    {
-     "name": "Series S · 1TB",
-     "match": "1 ?tb",
-     "strong": 265,
-     "typical": 255,
-     "note": "Priced like the 512GB to be safe; the 1TB usually sells a bit higher."
-    },
-    {
-     "name": "Series S · 512GB or not stated",
-     "match": "series ?s\\b",
-     "strong": 265,
-     "typical": 255
-    }
-   ],
-   "price_max": 229,
-   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
-   "ai_hint": "Microsoft Xbox Series S console (NOT Series X, Xbox One or 360)."
-  },
-  {
-   "id": "ps5pro",
-   "label": "PS5 Pro (high value)",
-   "enabled": true,
-   "weekly_sales": 56,
-   "queries": [
-    "ps5 pro console"
-   ],
-   "category_hint": [
-    "console",
-    "video game"
-   ],
-   "price_min": 500,
-   "post_out": 15,
-   "max_buy": 900,
-   "family": "\\b(ps5|playstation ?5) ?pro\\b",
-   "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b|\\bpro\\b.*\\b2 ?tb\\b",
-   "wrong": [
-    "controllers? only",
-    "pads? only",
-    "drive only",
-    "disc drive\\b(?!.*console)",
-    "\\bstand\\b(?! included)",
-    "\\bcase\\b(?! included)",
-    "\\bskin\\b",
-    "cover plates?",
-    "faceplates?",
-    "\\bgames? only",
-    "no controller",
-    "without controller",
-    "\\bbanned\\b",
-    "console only(?=.*no)",
-    "digital key",
-    "\\bcode\\b",
-    "portal",
-    "\\bps4\\b",
-    "\\bps5 games?\\b",
-    "expansion",
-    "storage card",
-    "\\bssd\\b",
-    "steel ?book",
-    "pre ?order",
-    "\\bvr ?2?\\b",
-    "psvr",
-    "headset",
-    "\\bportal\\b",
-    "\\bcamera\\b",
-    "face ?plates?",
-    "\\bgame only\\b",
-    "\\bcodes?\\b",
-    "dualsense edge",
-    "pro controller",
-    "\\bportal\\b"
-   ],
-   "wrong_specs": [],
-   "models": [
-    {
-     "name": "PS5 Pro 2TB",
-     "match": "\\bpro\\b",
-     "strong": 930,
-     "typical": 899,
-     "note": "High-value item: insure postage, check serial, power-on video from the seller."
-    }
-   ],
-   "price_max": 912,
-   "fast": true,
-   "ai_hint": "Sony PlayStation 5 Pro console, 2TB (NOT a regular PS5, not a DualSense Edge or other controller on its own)."
-  }
- ],
- "phone_rules": {
-  "min_feedback": 50,
-  "min_pct": 98,
+  "packaging_cost": 1,
+  "offer_zone_pct": 0.12,
+  "max_detail_lookups": 10,
+  "unconfirmed_extra_margin": 30,
+  "hot_ratio": 1.5,
   "junk": [
-   "frp",
-   "icloud",
-   "google lock",
-   "account lock",
-   "blocked",
-   "blacklist",
-   "network locked",
-   "locked to",
-   "burn",
-   "burn-in",
-   "ghost",
-   "green line",
-   "camera fault",
-   "camera issue",
-   "no face id",
-   "fingerprint not",
-   "chinese",
-   "china",
-   "cn version",
-   "cn rom",
-   "coloros",
-   "import"
-  ]
- },
- "junk_patterns": [
-  "\\bread\\W*$",
-  "\\bsee (notes?|desc\\w*|below|info)\\b",
-  "\\b(for|compatible with|fits|suits)\\b.{0,15}\\b(meta|oculus|quest|sony|bose|sennheiser|momentum|steam deck|valve|dyson|supersonic|samsung|galaxy|oneplus|nintendo|switch|dji|osmo)\\b",
-  "(?<!with )(?<!and )(?<!all )\\baccessor(y|ies)\\b",
-  "\\bpads?\\b",
-  "\\bstrap\\b",
-  "\\bpower ?banks?\\b",
-  "\\bbattery (pack|strap|head ?strap)\\b",
-  "charging (dock|station|stand|cable)"
- ],
- "max_buy": 500,
- "seller_min_feedback": 1,
- "seller_min_pct": 97,
- "trusted_min_feedback": 10,
- "trusted_min_pct": 98,
- "alert_gap_sec": 55,
- "alert_window_sec": 90,
- "track_per_run": 5,
- "ai_models": [
-  "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite",
-  "gemini-2.5-flash-lite"
- ],
- "full_scan_every_min": 12,
- "run_every_min": 1,
- "usage_limits": {
-  "gemini-3.5-flash-lite": 500,
-  "gemini-3.1-flash-lite": 500,
-  "gemini-2.5-flash-lite": 20,
-  "ebay": 5000
- },
- "junk_soft": [
-  "read description",
-  "see desc",
-  "please read",
-  "shell",
-  "scratched",
-  "missing",
-  "damaged",
-  "display model",
-  "replacement"
- ],
- "ai_screen_max": 120,
- "ai_screen_batch": 30
+    "faulty",
+    "spares",
+    "for parts",
+    "parts only",
+    "repair",
+    "broken",
+    "cracked",
+    "not working",
+    "untested",
+    "box only",
+    "empty box",
+    "no sound",
+    "drift",
+    "water damage",
+    "cover only",
+    "charger only",
+    "cable only",
+    "needs attention",
+    "job lot",
+    "dummy",
+    "replica",
+    "for repair",
+    "spares or repair",
+    "icloud",
+    "frp",
+    "snapped",
+    "pink line",
+    "dekoni"
+  ],
+  "categories": [
+    {
+      "id": "quest3",
+      "label": "Meta Quest 3",
+      "enabled": true,
+      "weekly_sales": 54,
+      "queries": [
+        "meta quest 3",
+        "meta quest vr headset"
+      ],
+      "category_hint": [
+        "virtual reality",
+        "vr",
+        "video game"
+      ],
+      "price_min": 120,
+      "price_max": 321,
+      "post_out": 8,
+      "family": "(meta|oculus).*(quest|vr|headset)|quest.*(vr|headset)",
+      "wrong": [
+        "quest ?3s\\b",
+        "quest ?2\\b",
+        "quest ?pro",
+        "controllers? only",
+        "strap only",
+        "battery strap",
+        "headset only",
+        "no controllers",
+        "without controllers",
+        "missing controller"
+      ],
+      "models": [
+        {
+          "name": "Quest 3 · 512GB",
+          "match": "quest ?3\\b(?!s).*512|512.*quest ?3\\b(?!s)",
+          "strong": 345,
+          "typical": 313,
+          "note": "Ask the seller to confirm it powers on, tracks properly and both controllers work."
+        },
+        {
+          "name": "Quest 3 · 128GB or storage not stated",
+          "match": "quest ?3\\b(?!s)",
+          "strong": 285,
+          "typical": 247,
+          "note": "Ask the seller to confirm it powers on, tracks properly and both controllers work."
+        }
+      ],
+      "wrong_specs": [
+        "quest ?3s\\b",
+        "quest ?2\\b"
+      ],
+      "require_any": "\\bheadset\\b|\\bcontrollers?\\b|\\b(128|256|512) ?gb\\b|\\bstandalone\\b|\\bboxed\\b|\\bbundle\\b|\\bconsole\\b|\\bmixed reality\\b",
+      "ai_hint": "Meta Quest 3 VR headset (NOT Quest 3S, Quest 2 or Quest Pro). The headset itself must be included.",
+      "fast": true,
+      "fast_queries": [
+        "meta quest 3"
+      ]
+    },
+    {
+      "id": "steamdeck",
+      "label": "Steam Deck OLED",
+      "enabled": false,
+      "weekly_sales": 36,
+      "queries": [
+        "steam deck oled",
+        "steam deck"
+      ],
+      "category_hint": [
+        "console",
+        "video game"
+      ],
+      "price_min": 250,
+      "price_max": 499,
+      "post_out": 9,
+      "family": "steam ?deck",
+      "wrong": [
+        "\\blcd\\b",
+        "64 ?gb",
+        "256 ?gb",
+        "dock only",
+        "case only"
+      ],
+      "models": [
+        {
+          "name": "Steam Deck OLED 1TB",
+          "match": "oled.*1 ?tb|1 ?tb.*oled",
+          "strong": 555,
+          "typical": 540
+        },
+        {
+          "name": "Steam Deck OLED 512GB",
+          "match": "oled",
+          "strong": 530,
+          "typical": 480
+        }
+      ],
+      "wrong_specs": [
+        "\\blcd\\b"
+      ],
+      "ai_hint": "Valve Steam Deck OLED handheld, 512GB or 1TB (NOT the LCD model, not 64/256GB)."
+    },
+    {
+      "id": "sony",
+      "label": "Sony WH-1000X headphones",
+      "enabled": false,
+      "weekly_sales": 38,
+      "queries": [
+        "sony wh-1000xm6",
+        "sony wh-1000xm5",
+        "sony noise cancelling headphones"
+      ],
+      "category_hint": [
+        "headphone"
+      ],
+      "price_min": 50,
+      "price_max": 205,
+      "post_out": 6,
+      "family": "sony.*(headphone|noise cancel|over.?ear|wireless)",
+      "wrong": [
+        "\\bwf\\b",
+        "earbud",
+        "in.?ear",
+        "ch ?7\\d0",
+        "\\bult\\b",
+        "zx\\d",
+        "headband (only|assembly)",
+        "replacement (headband|pads|cushions)",
+        "(ear ?)?pads? only",
+        "cushions? only",
+        "xm[234]",
+        "\\bxb ?\\d",
+        "\\bmdr",
+        "wh ?ch",
+        "\\bult"
+      ],
+      "models": [
+        {
+          "name": "Sony WH-1000XM6",
+          "match": "xm6",
+          "strong": 240,
+          "typical": 201
+        },
+        {
+          "name": "Sony WH-1000XM5",
+          "match": "xm5",
+          "strong": 137,
+          "typical": 107
+        }
+      ],
+      "wrong_specs": [
+        "xm[234]\\b",
+        "earbud",
+        "in.?ear",
+        "\\bwf\\b"
+      ],
+      "ai_hint": "Sony WH-1000XM5 or WH-1000XM6 over-ear headphones (NOT XM4 or older, not earbuds)."
+    },
+    {
+      "id": "bose",
+      "label": "Bose QC Ultra headphones",
+      "enabled": false,
+      "weekly_sales": 9,
+      "queries": [
+        "bose quietcomfort ultra headphones",
+        "bose noise cancelling headphones"
+      ],
+      "category_hint": [
+        "headphone"
+      ],
+      "price_min": 70,
+      "price_max": 228,
+      "post_out": 6,
+      "family": "bose.*(headphone|noise cancel|over.?ear|quietcomfort|qc)",
+      "wrong": [
+        "earbud",
+        "in.?ear",
+        "\\b700\\b",
+        "sport",
+        "soundlink",
+        "ultra open",
+        "headband (only|assembly)",
+        "replacement (headband|pads|cushions)",
+        "(ear ?)?pads? only",
+        "cushions? only",
+        "qc ?(15|20|25|30|35|45)\\b",
+        "\\bqc ?sc\\b",
+        "quietcontrol",
+        "\\bqc\\b(?!.*ultra)",
+        "\\bnc ?700\\b"
+      ],
+      "models": [
+        {
+          "name": "Bose QC Ultra Gen 2",
+          "match": "ultra.*(2nd|gen ?2|second)|(2nd|gen ?2|second).*ultra",
+          "strong": 260,
+          "typical": 213
+        },
+        {
+          "name": "Bose QC Ultra Gen 1",
+          "match": "ultra",
+          "strong": 185,
+          "typical": 152
+        }
+      ],
+      "wrong_specs": [
+        "earbud",
+        "in.?ear"
+      ],
+      "ai_hint": "Bose QuietComfort Ultra over-ear headphones, gen 1 or 2 (NOT QC45/QC35/QC SC, not earbuds)."
+    },
+    {
+      "id": "momentum4",
+      "label": "Sennheiser Momentum 4",
+      "enabled": false,
+      "weekly_sales": 12,
+      "queries": [
+        "sennheiser momentum 4"
+      ],
+      "category_hint": [
+        "headphone"
+      ],
+      "price_min": 50,
+      "price_max": 93,
+      "post_out": 6,
+      "family": "sennheiser.*(momentum|headphone)",
+      "wrong": [
+        "momentum ?(true|tw|sport|2|3)\\b",
+        "\\bhd ?\\d",
+        "earbud",
+        "in.?ear",
+        "on.?ear",
+        "headband (only|assembly)",
+        "replacement (headband|pads|cushions)",
+        "(ear ?)?pads? only",
+        "cushions? only"
+      ],
+      "models": [
+        {
+          "name": "Sennheiser Momentum 4",
+          "match": "momentum ?4",
+          "strong": 140,
+          "typical": 110
+        }
+      ],
+      "wrong_specs": [
+        "true wireless",
+        "earbud",
+        "in.?ear"
+      ]
+    },
+    {
+      "id": "supersonic",
+      "label": "Dyson Supersonic",
+      "enabled": false,
+      "weekly_sales": 4,
+      "queries": [
+        "dyson supersonic"
+      ],
+      "category_hint": [
+        "hair"
+      ],
+      "price_min": 35,
+      "price_max": 76,
+      "post_out": 7,
+      "family": "dyson.*(hair|dryer)",
+      "wrong": [
+        "airwrap",
+        "corrale",
+        "attachment",
+        "diffuser",
+        "nozzle",
+        "\\bstand\\b",
+        "filter",
+        "motor",
+        "coil",
+        "motherboard",
+        "pcb",
+        "presentation case",
+        "storage case",
+        "case only"
+      ],
+      "models": [
+        {
+          "name": "Dyson Supersonic (older HD01-HD03)",
+          "match": "hd ?0[1-3]\\b",
+          "strong": 90,
+          "typical": 60,
+          "note": "Older model: resells lower than the HD07/HD08"
+        },
+        {
+          "name": "Dyson Supersonic",
+          "match": "supersonic",
+          "strong": 125,
+          "note": "Dyson fakes exist: check the serial sticker and photos",
+          "typical": 80
+        }
+      ],
+      "wrong_specs": [
+        "airwrap",
+        "corrale"
+      ]
+    },
+    {
+      "id": "oneplus",
+      "label": "OnePlus 13 / 15",
+      "enabled": false,
+      "phone": true,
+      "weekly_sales": 11,
+      "queries": [
+        "oneplus 15",
+        "oneplus 13"
+      ],
+      "category_hint": [
+        "mobile",
+        "phone"
+      ],
+      "price_min": 250,
+      "price_max": 560,
+      "post_out": 6,
+      "family": "oneplus",
+      "wrong": [
+        "oneplus ?(1[0-2]|[1-9])\\b",
+        "\\b1[35] ?[rs]\\b",
+        "nord",
+        "\\bace\\b",
+        "\\bcase\\b",
+        "screen protector",
+        "\\bpad\\b",
+        "buds",
+        "watch"
+      ],
+      "wrong_specs": [
+        "\\b1[35] ?r\\b",
+        "nord"
+      ],
+      "models": [
+        {
+          "name": "OnePlus 15 512GB",
+          "match": "oneplus ?15\\b.*(512|1 ?tb)|(512|1 ?tb).*oneplus ?15\\b",
+          "strong": 715,
+          "typical": 679
+        },
+        {
+          "name": "OnePlus 15 256GB",
+          "match": "oneplus ?15\\b",
+          "strong": 625,
+          "note": "Storage not stated: priced as 256GB",
+          "typical": 537
+        },
+        {
+          "name": "OnePlus 13 512GB",
+          "match": "oneplus ?13\\b.*(512|1 ?tb)|(512|1 ?tb).*oneplus ?13\\b",
+          "strong": 565,
+          "typical": 500
+        },
+        {
+          "name": "OnePlus 13 256GB",
+          "match": "oneplus ?13\\b",
+          "strong": 460,
+          "note": "Storage not stated: priced as 256GB. OnePlus 13 sells slower (~4-6/week)",
+          "typical": 435
+        }
+      ]
+    },
+    {
+      "id": "samsung",
+      "label": "Samsung Galaxy S25 Ultra",
+      "enabled": false,
+      "phone": true,
+      "weekly_sales": 45,
+      "queries": [
+        "samsung galaxy s25 ultra"
+      ],
+      "category_hint": [
+        "mobile",
+        "phone"
+      ],
+      "price_min": 300,
+      "price_max": 560,
+      "post_out": 6,
+      "family": "samsung|galaxy",
+      "wrong": [
+        "\\bfe\\b",
+        "flip",
+        "fold",
+        "\\btab\\b",
+        "watch",
+        "buds",
+        "s2[0-4]\\b",
+        "\\bcase\\b",
+        "screen protector",
+        "dummy"
+      ],
+      "wrong_specs": [
+        "\\bfe\\b"
+      ],
+      "models": [
+        {
+          "name": "Galaxy S25 Ultra 512GB",
+          "match": "s25 ?ultra.*(512|1 ?tb)|(512|1 ?tb).*s25 ?ultra",
+          "strong": 615,
+          "typical": 588
+        },
+        {
+          "name": "Galaxy S25 Ultra 256GB",
+          "match": "s25 ?ultra",
+          "strong": 560,
+          "note": "Storage not stated: priced as 256GB",
+          "typical": 507
+        }
+      ]
+    },
+    {
+      "id": "quest3s",
+      "label": "Meta Quest 3S",
+      "enabled": false,
+      "weekly_sales": 47,
+      "queries": [
+        "meta quest 3s"
+      ],
+      "category_hint": [
+        "virtual reality",
+        "vr",
+        "video game"
+      ],
+      "price_min": 90,
+      "post_out": 8,
+      "family": "quest ?3s",
+      "wrong": [
+        "quest ?3\\b(?!s)",
+        "quest ?2\\b",
+        "quest ?pro",
+        "controllers? only",
+        "headset only",
+        "no controllers",
+        "without controllers",
+        "missing controller"
+      ],
+      "wrong_specs": [
+        "quest ?3\\b(?!s)"
+      ],
+      "models": [
+        {
+          "name": "Quest 3S 256GB",
+          "match": "quest ?3s.*256|256.*quest ?3s",
+          "strong": 235,
+          "typical": 205
+        },
+        {
+          "name": "Quest 3S 128GB",
+          "match": "quest ?3s",
+          "strong": 205,
+          "typical": 175,
+          "note": "Storage not stated: priced as 128GB"
+        }
+      ],
+      "price_max": 198,
+      "require_any": "\\bheadset\\b|\\bcontrollers?\\b|\\b(128|256|512) ?gb\\b|\\bstandalone\\b|\\bboxed\\b|\\bbundle\\b|\\bconsole\\b|\\bmixed reality\\b",
+      "ai_hint": "Meta Quest 3S VR headset (NOT Quest 3, Quest 2 or Quest Pro). The headset itself must be included."
+    },
+    {
+      "id": "switcholed",
+      "label": "Nintendo Switch OLED",
+      "enabled": false,
+      "weekly_sales": 24,
+      "queries": [
+        "nintendo switch oled"
+      ],
+      "category_hint": [
+        "console",
+        "video game"
+      ],
+      "price_min": 60,
+      "post_out": 8,
+      "family": "switch.*oled|oled.*switch",
+      "wrong": [
+        "\\blite\\b",
+        "switch ?2\\b",
+        "console only",
+        "tablet only",
+        "screen only",
+        "no dock",
+        "without dock",
+        "no joy ?cons?",
+        "joy ?cons? only",
+        "dock only",
+        "banned",
+        "\\bgames? only"
+      ],
+      "wrong_specs": [
+        "\\blite\\b"
+      ],
+      "models": [
+        {
+          "name": "Switch OLED",
+          "match": "oled",
+          "strong": 180,
+          "typical": 146,
+          "note": "Test Joy-Cons for drift and check the dock works"
+        }
+      ],
+      "price_max": 136
+    },
+    {
+      "id": "switch2",
+      "label": "Nintendo Switch 2",
+      "enabled": false,
+      "weekly_sales": 214,
+      "queries": [
+        "nintendo switch 2 console"
+      ],
+      "category_hint": [
+        "console",
+        "video game"
+      ],
+      "price_min": 200,
+      "post_out": 8,
+      "family": "switch ?2\\b",
+      "wrong": [
+        "\\blite\\b",
+        "\\boled\\b",
+        "console only",
+        "tablet only",
+        "no dock",
+        "without dock",
+        "dock only",
+        "joy ?cons? only",
+        "\\bgames? only",
+        "mario kart only",
+        "amiibo",
+        "banned",
+        "expansion",
+        "storage card",
+        "\\bssd\\b",
+        "steel ?book",
+        "pre ?order",
+        "\\bvr ?2?\\b",
+        "psvr",
+        "headset",
+        "\\bportal\\b",
+        "\\bcamera\\b",
+        "face ?plates?",
+        "\\bgame only\\b",
+        "\\bcodes?\\b"
+      ],
+      "wrong_specs": [],
+      "models": [
+        {
+          "name": "Switch 2",
+          "match": "switch ?2\\b",
+          "strong": 345,
+          "typical": 327,
+          "note": "New model: check it isn't linked to the seller's account"
+        }
+      ],
+      "price_max": 321,
+      "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
+      "ai_hint": "Nintendo Switch 2 console (NOT Switch OLED, Lite or the original Switch)."
+    },
+    {
+      "id": "osmo3",
+      "label": "DJI Osmo Pocket 3",
+      "enabled": false,
+      "weekly_sales": 18,
+      "queries": [
+        "dji osmo pocket 3"
+      ],
+      "category_hint": [
+        "camera",
+        "camcorder",
+        "video"
+      ],
+      "price_min": 120,
+      "post_out": 6,
+      "family": "pocket ?3",
+      "wrong": [
+        "\\bfilters?\\b",
+        "\\bmount\\b",
+        "handle only",
+        "\\bcase\\b(?! included)",
+        "osmo pocket ?2",
+        "\\bpocket ?2\\b",
+        "lens only"
+      ],
+      "wrong_specs": [],
+      "models": [
+        {
+          "name": "Osmo Pocket 3 Creator Combo",
+          "match": "creator",
+          "strong": 320,
+          "typical": 290
+        },
+        {
+          "name": "Osmo Pocket 3",
+          "match": "pocket ?3",
+          "strong": 250,
+          "typical": 236,
+          "note": "Check the gimbal moves freely and the screen rotates"
+        }
+      ],
+      "price_max": 295,
+      "ai_hint": "DJI Osmo Pocket 3 camera, standard or Creator Combo (NOT Pocket 2)."
+    },
+    {
+      "id": "ps5",
+      "label": "PlayStation 5",
+      "enabled": false,
+      "weekly_sales": 350,
+      "queries": [
+        "ps5 console",
+        "playstation 5 console"
+      ],
+      "category_hint": [
+        "console",
+        "video game"
+      ],
+      "price_min": 200,
+      "post_out": 11,
+      "family": "\\b(ps5|playstation ?5)\\b",
+      "wrong": [
+        "controllers? only",
+        "pads? only",
+        "drive only",
+        "disc drive\\b(?!.*console)",
+        "\\bstand\\b(?! included)",
+        "\\bcase\\b(?! included)",
+        "\\bskin\\b",
+        "cover plates?",
+        "faceplates?",
+        "\\bgames? only",
+        "no controller",
+        "without controller",
+        "\\bbanned\\b",
+        "console only(?=.*no)",
+        "digital key",
+        "\\bcode\\b",
+        "\\bpro\\b",
+        "portal",
+        "\\bps4\\b",
+        "\\bps5 games?\\b",
+        "expansion",
+        "storage card",
+        "\\bssd\\b",
+        "steel ?book",
+        "pre ?order",
+        "\\bvr ?2?\\b",
+        "psvr",
+        "headset",
+        "\\bportal\\b",
+        "\\bcamera\\b",
+        "face ?plates?",
+        "\\bgame only\\b",
+        "\\bcodes?\\b"
+      ],
+      "wrong_specs": [
+        "\\bpro\\b"
+      ],
+      "models": [
+        {
+          "name": "PS5 Slim Digital",
+          "match": "slim.*digital|digital.*slim",
+          "strong": 445,
+          "typical": 426
+        },
+        {
+          "name": "PS5 Slim Disc",
+          "match": "slim",
+          "strong": 495,
+          "typical": 466
+        },
+        {
+          "name": "PS5 Digital (original)",
+          "match": "digital",
+          "strong": 410,
+          "typical": 394
+        },
+        {
+          "name": "PS5 Disc (original)",
+          "match": "\\b(ps5|playstation ?5)\\b",
+          "strong": 445,
+          "typical": 425,
+          "note": "Title doesn't say slim or digital: confirm the model from the photos."
+        }
+      ],
+      "price_max": 448,
+      "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
+      "ai_hint": "Sony PlayStation 5 console, Slim or original, disc or digital (NOT PS5 Pro, not PS4)."
+    },
+    {
+      "id": "xboxsx",
+      "label": "Xbox Series X",
+      "enabled": true,
+      "weekly_sales": 320,
+      "queries": [
+        "xbox series x console"
+      ],
+      "category_hint": [
+        "console",
+        "video game"
+      ],
+      "price_min": 200,
+      "post_out": 11,
+      "family": "series ?x\\b",
+      "wrong": [
+        "controllers? only",
+        "pads? only",
+        "drive only",
+        "disc drive\\b(?!.*console)",
+        "\\bstand\\b(?! included)",
+        "\\bcase\\b(?! included)",
+        "\\bskin\\b",
+        "cover plates?",
+        "faceplates?",
+        "\\bgames? only",
+        "no controller",
+        "without controller",
+        "\\bbanned\\b",
+        "console only(?=.*no)",
+        "digital key",
+        "\\bcode\\b",
+        "series ?s\\b",
+        "\\b360\\b",
+        "xbox one\\b",
+        "expansion",
+        "storage card",
+        "\\bssd\\b",
+        "steel ?book",
+        "pre ?order",
+        "\\bvr ?2?\\b",
+        "psvr",
+        "headset",
+        "\\bportal\\b",
+        "\\bcamera\\b",
+        "face ?plates?",
+        "\\bgame only\\b",
+        "\\bcodes?\\b",
+        "controller not included",
+        "no pad"
+      ],
+      "wrong_specs": [
+        "series ?s\\b"
+      ],
+      "models": [
+        {
+          "name": "Series X Digital",
+          "match": "digital",
+          "strong": 460,
+          "typical": 422
+        },
+        {
+          "name": "Series X (disc)",
+          "match": "series ?x",
+          "strong": 525,
+          "typical": 480
+        }
+      ],
+      "price_max": 463,
+      "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
+      "ai_hint": "Microsoft Xbox Series X console (NOT Series S, Xbox One or 360). Must include at least one controller.",
+      "fast": true,
+      "fast_every_min": 2,
+      "min_safe_profit": 90,
+      "no_offers": true,
+      "needs_controller": true
+    },
+    {
+      "id": "xboxss",
+      "label": "Xbox Series S",
+      "enabled": false,
+      "weekly_sales": 450,
+      "queries": [
+        "xbox series s console"
+      ],
+      "category_hint": [
+        "console",
+        "video game"
+      ],
+      "price_min": 110,
+      "post_out": 10,
+      "family": "series ?s\\b",
+      "wrong": [
+        "controllers? only",
+        "pads? only",
+        "drive only",
+        "disc drive\\b(?!.*console)",
+        "\\bstand\\b(?! included)",
+        "\\bcase\\b(?! included)",
+        "\\bskin\\b",
+        "cover plates?",
+        "faceplates?",
+        "\\bgames? only",
+        "no controller",
+        "without controller",
+        "\\bbanned\\b",
+        "console only(?=.*no)",
+        "digital key",
+        "\\bcode\\b",
+        "\\b360\\b",
+        "series ?x\\b",
+        "xbox one\\b",
+        "\\bone s\\b",
+        "expansion card",
+        "storage card",
+        "expansion",
+        "\\bssd\\b",
+        "steel ?book",
+        "pre ?order",
+        "\\bvr ?2?\\b",
+        "psvr",
+        "headset",
+        "\\bportal\\b",
+        "\\bcamera\\b",
+        "face ?plates?",
+        "\\bgame only\\b",
+        "\\bcodes?\\b"
+      ],
+      "wrong_specs": [
+        "series ?x\\b"
+      ],
+      "models": [
+        {
+          "name": "Series S · 1TB",
+          "match": "1 ?tb",
+          "strong": 265,
+          "typical": 255,
+          "note": "Priced like the 512GB to be safe; the 1TB usually sells a bit higher."
+        },
+        {
+          "name": "Series S · 512GB or not stated",
+          "match": "series ?s\\b",
+          "strong": 265,
+          "typical": 255
+        }
+      ],
+      "price_max": 229,
+      "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
+      "ai_hint": "Microsoft Xbox Series S console (NOT Series X, Xbox One or 360)."
+    },
+    {
+      "id": "ps5pro",
+      "label": "PS5 Pro (high value)",
+      "enabled": true,
+      "weekly_sales": 56,
+      "queries": [
+        "ps5 pro console"
+      ],
+      "category_hint": [
+        "console",
+        "video game"
+      ],
+      "price_min": 500,
+      "post_out": 15,
+      "max_buy": 900,
+      "family": "\\b(ps5|playstation ?5) ?pro\\b",
+      "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b|\\bpro\\b.*\\b2 ?tb\\b",
+      "wrong": [
+        "controllers? only",
+        "pads? only",
+        "drive only",
+        "disc drive\\b(?!.*console)",
+        "\\bstand\\b(?! included)",
+        "\\bcase\\b(?! included)",
+        "\\bskin\\b",
+        "cover plates?",
+        "faceplates?",
+        "\\bgames? only",
+        "no controller",
+        "without controller",
+        "\\bbanned\\b",
+        "console only(?=.*no)",
+        "digital key",
+        "\\bcode\\b",
+        "portal",
+        "\\bps4\\b",
+        "\\bps5 games?\\b",
+        "expansion",
+        "storage card",
+        "\\bssd\\b",
+        "steel ?book",
+        "pre ?order",
+        "\\bvr ?2?\\b",
+        "psvr",
+        "headset",
+        "\\bportal\\b",
+        "\\bcamera\\b",
+        "face ?plates?",
+        "\\bgame only\\b",
+        "\\bcodes?\\b",
+        "dualsense edge",
+        "pro controller",
+        "\\bportal\\b",
+        "controller not included",
+        "no pad"
+      ],
+      "wrong_specs": [],
+      "models": [
+        {
+          "name": "PS5 Pro 2TB",
+          "match": "\\bpro\\b",
+          "strong": 930,
+          "typical": 899,
+          "note": "High-value item: insure postage, check serial, power-on video from the seller."
+        }
+      ],
+      "price_max": 912,
+      "fast": true,
+      "ai_hint": "Sony PlayStation 5 Pro console, 2TB (NOT a regular PS5, not a DualSense Edge or other controller on its own). Must include at least one controller.",
+      "needs_controller": true
+    }
+  ],
+  "phone_rules": {
+    "min_feedback": 50,
+    "min_pct": 98,
+    "junk": [
+      "frp",
+      "icloud",
+      "google lock",
+      "account lock",
+      "blocked",
+      "blacklist",
+      "network locked",
+      "locked to",
+      "burn",
+      "burn-in",
+      "ghost",
+      "green line",
+      "camera fault",
+      "camera issue",
+      "no face id",
+      "fingerprint not",
+      "chinese",
+      "china",
+      "cn version",
+      "cn rom",
+      "coloros",
+      "import"
+    ]
+  },
+  "junk_patterns": [
+    "\\bread\\W*$",
+    "\\bsee (notes?|desc\\w*|below|info)\\b",
+    "\\b(for|compatible with|fits|suits)\\b.{0,15}\\b(meta|oculus|quest|sony|bose|sennheiser|momentum|steam deck|valve|dyson|supersonic|samsung|galaxy|oneplus|nintendo|switch|dji|osmo)\\b",
+    "(?<!with )(?<!and )(?<!all )\\baccessor(y|ies)\\b",
+    "\\bpads?\\b",
+    "\\bstrap\\b",
+    "\\bpower ?banks?\\b",
+    "\\bbattery (pack|strap|head ?strap)\\b",
+    "charging (dock|station|stand|cable)"
+  ],
+  "max_buy": 500,
+  "seller_min_feedback": 1,
+  "seller_min_pct": 97,
+  "trusted_min_feedback": 10,
+  "trusted_min_pct": 98,
+  "alert_gap_sec": 55,
+  "alert_window_sec": 90,
+  "track_per_run": 5,
+  "ai_models": [
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash-lite"
+  ],
+  "full_scan_every_min": 12,
+  "run_every_min": 1,
+  "usage_limits": {
+    "gemini-3.5-flash-lite": 500,
+    "gemini-3.1-flash-lite": 500,
+    "gemini-2.5-flash-lite": 20,
+    "ebay": 5000
+  },
+  "junk_soft": [
+    "read description",
+    "see desc",
+    "please read",
+    "shell",
+    "scratched",
+    "missing",
+    "damaged",
+    "display model",
+    "replacement"
+  ],
+  "ai_screen_max": 120,
+  "ai_screen_batch": 30
 }

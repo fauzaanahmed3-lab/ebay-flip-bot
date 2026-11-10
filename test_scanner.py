@@ -200,10 +200,10 @@ check6("PS5 original disc priced as original", s.triage(CATS["ps5"], item("Sony 
 c = s.triage(CATS["xboxsx"], item("Xbox Series X 1TB console with one controller", 340, fb=20))
 check6("Xbox Series X with one controller is fine", c and c["model"], "Series X (disc)")
 check6("Xbox Series S rejected", s.triage(CATS["xboxsx"], item("Xbox Series S 512GB console", 150)), None)
-check6("Xbox Series X digital tagged", s.triage(CATS["xboxsx"], item("Xbox Series X Digital Edition 1TB white", 320, fb=20))["model"], "Series X Digital")
-it = item("Xbox Series X 1TB console", 380, fb=20)
+check6("Xbox Series X digital tagged", s.triage(CATS["xboxsx"], item("Xbox Series X Digital Edition 1TB white", 290, fb=20))["model"], "Series X Digital")
+it = item("Xbox Series X 1TB console", 360, fb=20)
 cand = s.triage(CATS["xboxsx"], it); det = details(); det["seller"] = {"sellerAccountType": "BUSINESS"}
-check6("business seller: buyer fee removed", s.score(CATS["xboxsx"], cand, det)["all_in"], 380.0)
+check6("business seller: buyer fee removed", s.score(CATS["xboxsx"], cand, det)["all_in"], 360.0)
 r = run("xboxsx", item("Xbox Series X 1TB console", 330, fb=4), details())
 check6("4-feedback seller allowed but CHECK", r["rating"], "CHECK")
 check6("phones and Switch OLED switched off", [CATS[k]["enabled"] for k in ("oneplus", "samsung", "switcholed")], [False, False, False])
@@ -472,3 +472,40 @@ check17("rejected in this category -> not screened again", len(called), 0)
 check17("screen prompt rejects incomplete units", "essential part is missing" in s.SCREEN_PROMPT, True)
 s.requests.post = _old_post; del _os.environ["GEMINI_API_KEY"]; s.SOFT.clear(); s.SCREENED_IN.clear(); s.LOG.clear()
 print(f"category-aware screening: {sum(R17)}/{len(R17)} passed")
+
+# ---- Quest 3 fast scan uses only its main search ----
+_q3 = {x["id"]: x for x in s.CONFIG["categories"]}["quest3"]
+print(("PASS " if _q3.get("fast") and _q3.get("fast_queries") == ["meta quest 3"] else "FAIL ") + "Quest 3 fast scan = 1 search")
+print(("PASS " if not any(x["enabled"] for x in s.CONFIG["categories"] if x["id"] in ("bose", "osmo3", "sony")) else "FAIL ") + "Bose, Osmo 3, Sony off")
+
+# ---- 10 Nov: 3 categories, Xbox hot-deals-only, controller rule ----
+R18 = []
+def check18(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R18.append(ok)
+_on = sorted(x["id"] for x in s.CONFIG["categories"] if x.get("enabled"))
+check18("only PS5 Pro, Quest 3, Xbox Series X on", _on, ["ps5pro", "quest3", "xboxsx"])
+_xb = CATS["xboxsx"]
+check18("Xbox disc target clears £90 at a typical sale", s.cat_target(_xb, _xb["models"][1]), 378.0)
+r = run("xboxsx", item("Xbox Series X 1TB console with controller", 360, fb=200), details())
+check18("Xbox deal needs £90 and clears it", (r["required_profit"], r["safe_profit"] >= 90), (90, True))
+check18("Xbox £1 over target is dropped (no offer alerts)", s.triage(_xb, {**item("Xbox Series X 1TB console", 370, fb=200), "buyingOptions": ["FIXED_PRICE", "BEST_OFFER"]}), None)
+d = details(); d["description"] = "Selling my Xbox Series X. Console only, no controller included, sorry."
+check18("description says no controller -> rejected", run("xboxsx", item("Xbox Series X 1TB console", 330, fb=200), d), None)
+d = details(); d["description"] = "Console only used a few times, comes with controller and leads."
+check18("'console only used a few times' is not a no-controller listing", run("xboxsx", item("Xbox Series X 1TB console", 330, fb=200), d) is not None, True)
+check18("PS5 Pro also needs a controller", CATS["ps5pro"].get("needs_controller"), True)
+check18("AI prompt asks about the controller", "at least one working controller" in s.PAD_RULE, True)
+import datetime as _dt
+class _FakeDT(_dt.datetime):
+    m = 1
+    @classmethod
+    def now(cls, tz=None): return _dt.datetime(2026, 11, 10, 22, cls.m, tzinfo=tz)
+_old_dt = s.datetime; s.datetime = _FakeDT
+_picked = lambda: [c["id"] for c in s.CONFIG["categories"] if c.get("enabled") and c["models"] and c.get("fast")
+                   and _FakeDT.now().minute % c.get("fast_every_min", 1) == 0]
+_FakeDT.m = 1; odd = _picked(); _FakeDT.m = 2; even = _picked()
+s.datetime = _old_dt
+check18("Xbox every 2 minutes, others every minute", (sorted(odd), sorted(even)), (["ps5pro", "quest3"], ["ps5pro", "quest3", "xboxsx"]))
+print(f"3 categories + Xbox rules: {sum(R18)}/{len(R18)} passed")
