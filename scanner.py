@@ -107,6 +107,25 @@ def buy_target(strong: float, post_out: float, max_buy: float | None = None) -> 
     return min(_buy_target(strong, post_out), cap)   # never spend more than the cap
 
 
+def cat_target(cat: dict, model: dict) -> float:
+    """Buy target for one model. Categories with min_safe_profit must clear that profit even at a typical sale price."""
+    t = buy_target(model["strong"], cat["post_out"], cat.get("max_buy"))
+    msp = cat.get("min_safe_profit")
+    if msp:
+        t = min(t, round(model.get("typical", model["strong"]) - cat["post_out"] - PACK - msp, 2))
+    return t
+
+
+def offer_zone(cat: dict) -> float:
+    """How far over target we still flag as 'send an offer'. 0 for hot-deals-only categories."""
+    return 0 if cat.get("no_offers") else CONFIG["offer_zone_pct"]
+
+
+NO_PAD = re.compile(r"console only\b(?! (used|been|had|played|ever|a few|once|twice))|\bno (controllers?|pads?)\b|"
+                    r"without (a |the |any )?(controllers?|pads?)\b|(controllers?|pads?) (is |are )?not included|"
+                    r"(doesn'?t|does not) come with (a |the |any )?(controllers?|pads?)")
+
+
 def _buy_target(strong: float, post_out: float) -> float:
     """Highest price we can pay and still make that price band's required profit."""
     net = strong - post_out - PACK
@@ -146,8 +165,8 @@ def triage(cat: dict, item: dict) -> dict | None:
     fee = buyer_fee(price)                       # assume a private seller until the details say business
     all_in = round(price + ship + fee, 2)
 
-    best_target = max(buy_target(m["strong"], cat["post_out"], cat.get("max_buy")) for m in cat["models"])
-    if all_in > best_target * (1 + CONFIG["offer_zone_pct"]):           # stage 2: price gate (maths, final)
+    best_target = max(cat_target(cat, m) for m in cat["models"])
+    if all_in > best_target * (1 + offer_zone(cat)):           # stage 2: price gate (maths, final)
         return _no(cat["id"], "too pricey")
 
     junk = CONFIG["junk"] + (CONFIG["phone_rules"]["junk"] if cat.get("phone") else [])
@@ -187,8 +206,8 @@ def triage(cat: dict, item: dict) -> dict | None:
 
     model = model_for(cat, t)                                            # stage 4: lanes
     if model:
-        target = buy_target(model["strong"], cat["post_out"], cat.get("max_buy"))
-        if all_in > target and not (best_offer and all_in <= target * (1 + CONFIG["offer_zone_pct"])):
+        target = cat_target(cat, model)
+        if all_in > target and not (best_offer and all_in <= target * (1 + offer_zone(cat))):
             return _no(cat["id"], "too pricey")                          # e.g. an XM5 priced like an XM6
         return {**cand, "lane": "EXACT", "model": model["name"]}
     if re.search(cat["family"], t):
@@ -211,6 +230,11 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
         returns_ok = (details.get("returnTerms") or {}).get("returnsAccepted")
         if any_match(cat.get("wrong_specs", []), aspects) or damage_in(details.get("conditionDescription", "")):
             return None                                       # specifics reveal wrong model / damage
+        if cat.get("needs_controller"):
+            blob = norm(" ".join([details.get("conditionDescription") or "", _strip_html(details.get("shortDescription") or ""),
+                                  _strip_html(details.get("description") or "")[:4000]]))
+            if NO_PAD.search(blob):
+                return None                                   # seller says no controller included
 
     if details and (details.get("seller") or {}).get("sellerAccountType") == "BUSINESS" and cand.get("fee"):
         cand = {**cand, "all_in": round(cand["all_in"] - cand["fee"], 2), "fee": 0}   # business sellers: no buyer fee
@@ -228,7 +252,7 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
             model = min(cat["models"], key=lambda m: m["strong"])          # price as the cheapest model
             notes.append("Model not confirmed. Check the photos before buying.")
 
-    target = buy_target(model["strong"], cat["post_out"], cat.get("max_buy"))
+    target = cat_target(cat, model)
     all_in, ship = cand["all_in"], cand["shipping"]
     suggested_offer = None
     if lane == "UNCONFIRMED":
@@ -237,7 +261,7 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
         verdict = "DEAL"
     elif all_in <= target:
         verdict = "DEAL"
-    elif cand["best_offer"] and all_in <= target * (1 + CONFIG["offer_zone_pct"]):
+    elif cand["best_offer"] and all_in <= target * (1 + offer_zone(cat)):
         verdict = "OFFER"
         fee_rate = 1 if cand.get("fee") else 0
         suggested_offer = int(target - ship - fee_rate * buyer_fee(target - ship))   # offer + postage + fee = target
@@ -247,7 +271,7 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
     pay = (suggested_offer + ship + (buyer_fee(suggested_offer) if cand.get("fee") else 0)) if suggested_offer else all_in
     profit = round(model["strong"] - cat["post_out"] - PACK - pay, 2)
     safe_profit = round(model.get("typical", model["strong"]) - cat["post_out"] - PACK - pay, 2)
-    need = required_profit(pay)
+    need = max(required_profit(pay), cat.get("min_safe_profit") or 0)
 
     # ---- plain-English notes ----
     fb, pct = cand["seller_feedback"], cand["seller_pct"]
@@ -389,7 +413,7 @@ AI_PROMPT = """You check eBay UK listings for a reseller. Product wanted: {produ
 Decide if this listing is a COMPLETE, WORKING {model} that can be resold as one.
 Answer "no" if: it is an accessory, box, game, part, code or a different product/model; it is faulty, broken, for parts, untested, locked or banned; or the photo clearly shows a different item or serious damage.
 Answer "unsure" if key facts are missing (e.g. stock photo plus vague text, or main parts like controllers/charger missing).
-Otherwise answer "yes".
+{extra}Otherwise answer "yes".
 Reply with JSON only: {{"verdict": "yes|no|unsure", "reason": "max 15 words"}}
 
 LISTING
@@ -399,6 +423,10 @@ Condition: {condition}
 Seller notes: {cond_desc}
 Item specifics: {aspects}
 Description: {desc}
+"""
+
+
+PAD_RULE = """It MUST come with at least one working controller (as standard in the box). Answer "no" if the text or photo shows it comes without one (e.g. "console only", "no controller"). If a controller is neither mentioned nor visible, answer "unsure" with reason "controller not confirmed".
 """
 
 
@@ -414,7 +442,7 @@ def ai_check(cat: dict, row: dict, details: dict) -> tuple[str, str, str]:
     d = details or {}
     aspects = "; ".join(f"{a.get('name')}: {a.get('value')}" for a in (d.get("localizedAspects") or [])[:15])
     prompt = AI_PROMPT.format(
-        product=cat.get("label", cat["id"]), model=row.get("variant") or cat.get("label"),
+        product=cat.get("label", cat["id"]), model=row.get("variant") or cat.get("label"), extra=PAD_RULE if cat.get("needs_controller") else "",
         title=row.get("title"), price=row.get("price"), all_in=row.get("all_in"),
         condition=d.get("condition", "?"), cond_desc=(d.get("conditionDescription") or "-")[:400],
         aspects=aspects[:600] or "-", desc=_strip_html(d.get("shortDescription") or d.get("description") or "")[:1500] or "-")
@@ -783,8 +811,8 @@ def screen_soft(old: dict, cand_ids: set, fresh: list) -> list[dict]:
         if v == "yes":
             model = next((m for m in cat["models"] if m["name"] == model_name), None)
             if model:
-                target = buy_target(model["strong"], cat["post_out"], cat.get("max_buy"))
-                if c["all_in"] > target and not (c["best_offer"] and c["all_in"] <= target * (1 + CONFIG["offer_zone_pct"])):
+                target = cat_target(cat, model)
+                if c["all_in"] > target and not (c["best_offer"] and c["all_in"] <= target * (1 + offer_zone(cat))):
                     nos.append(f"{short(c)}: genuine {model_name}, but too pricey")
                     rejects.append({**{k: v2 for k, v2 in c.items() if k not in DROP}, "verdict": "REJECT",
                                     "status": "rejected", "ai_verdict": "yes", "ai_reason": "genuine but too pricey",
@@ -809,7 +837,9 @@ def screen_soft(old: dict, cand_ids: set, fresh: list) -> list[dict]:
 def main() -> int:
     token = ebay_token()
     full = full_scan_due()
-    cats = [c for c in CONFIG["categories"] if c.get("enabled") and c["models"] and (full or c.get("fast"))]
+    minute = datetime.now(timezone.utc).minute
+    cats = [c for c in CONFIG["categories"] if c.get("enabled") and c["models"]
+            and (full or (c.get("fast") and minute % c.get("fast_every_min", 1) == 0))]
     print("Full scan" if full else "Fast scan: " + ", ".join(c["id"] for c in cats))
     LOG.append(f"**{'Full' if full else 'Fast'} scan** · {datetime.now(timezone.utc).strftime('%H:%M')} UTC")
     cands = []
