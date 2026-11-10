@@ -815,7 +815,7 @@ def main() -> int:
     cands = []
     for cat in cats:
         seen_ids = set()
-        for q in cat["queries"]:
+        for q in (cat["queries"] if full else cat.get("fast_queries", cat["queries"])):   # fast runs can use fewer searches
             try:
                 items = ebay_search(token, cat, q)
             except requests.HTTPError as e:
