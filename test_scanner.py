@@ -552,3 +552,40 @@ check19("database down: still gets a token from eBay", s.ebay_token(), "tok5")
 s.requests.get, s.requests.post, s.requests.delete, s.DRY_RUN = _saved[:4]
 os.environ.clear(); os.environ.update(_saved[4])
 print(f"Token reuse: {sum(R19)}/{len(R19)} passed")
+
+# --- 20. A1 survival tracking (12 Nov 2026) ---
+R20 = []
+def check20(name, got, want):
+    ok = got == want; R20.append(ok); print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"  got {got!r}, want {want!r}"))
+_t0 = s.datetime(2026, 11, 12, 10, 0, tzinfo=s.timezone.utc)
+_m = lambda mins: _t0 + s.timedelta(minutes=mins)
+check20("check schedule is 1, 2, 3, 5, 10, 20 minutes", s.SURVIVAL_MIN, [1, 2, 3, 5, 10, 20])
+check20("first check not due at 30 s", s.survival_due(_t0, 0, _m(0.5)), False)
+check20("first check due at 1 min", s.survival_due(_t0, 0, _m(1)), True)
+check20("4th check (5 min) not due at 4 min", s.survival_due(_t0, 3, _m(4)), False)
+check20("4th check due at 5 min", s.survival_due(_t0, 3, _m(5.2)), True)
+check20("no checks after the 6th", s.survival_due(_t0, 6, _m(60)), False)
+# full survival_checks pass with fake eBay + Supabase
+_patches, _ebay = [], {"gone1": (404, None), "live1": (200, {"estimatedAvailabilities": [{"estimatedAvailabilityStatus": "IN_STOCK"}]}),
+                       "sold1": (200, {"estimatedAvailabilities": [{"estimatedAvailabilityStatus": "OUT_OF_STOCK"}]})}
+class _RR:
+    def __init__(self, code, j): self.status_code = code; self.ok = code < 400; self._j = j
+    def json(self): return self._j
+    def raise_for_status(self): pass
+_now = s.datetime.now(s.timezone.utc)
+_rows = [{"item_id": i, "title": i, "all_in": 700, "posted_at": (_now - s.timedelta(minutes=2.5)).isoformat(), "live_checks": 1} for i in _ebay]
+_rows.append({"item_id": "notdue", "title": "notdue", "all_in": 700, "posted_at": (_now - s.timedelta(seconds=20)).isoformat(), "live_checks": 0})
+def _sget(url, **k):
+    if "/rest/v1/" in url: return _RR(200, _rows)
+    return _RR(*_ebay[url.rsplit("/", 1)[1]])
+_saved20 = (s.requests.get, s.requests.patch, s.DRY_RUN, dict(os.environ))
+s.requests.get = _sget; s.requests.patch = lambda url, **k: _patches.append((k["params"]["item_id"][3:], k["json"])); s.DRY_RUN = False
+os.environ.update(SUPABASE_URL="https://x.supabase.co", SUPABASE_SERVICE_KEY="k")
+s.survival_checks("tok")
+_p = dict(_patches)
+check20("removed listing recorded as gone", (_p["gone1"].get("outcome"), "gone_at" in _p["gone1"], _p["gone1"]["live_checks"]), ("gone", True, 2))
+check20("sold-out listing recorded as gone", _p["sold1"].get("outcome"), "gone")
+check20("live listing recorded as still for sale", ("last_live_at" in _p["live1"], "gone_at" in _p["live1"]), (True, False))
+check20("alert posted 20 s ago is not checked yet", "notdue" in _p, False)
+s.requests.get, s.requests.patch, s.DRY_RUN = _saved20[:3]; os.environ.clear(); os.environ.update(_saved20[3])
+print(f"A1 survival tracking: {sum(R20)}/{len(R20)} passed")

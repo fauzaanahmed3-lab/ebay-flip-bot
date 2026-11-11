@@ -416,6 +416,52 @@ def ebay_item(token: str, item_id: str) -> dict | None:
     return r.json() if r.ok else None
 
 
+SURVIVAL_MIN = [1, 2, 3, 5, 10, 20]      # A1: re-check each posted deal about this many minutes after posting
+
+
+def mark_posted(item_id: str, msg_id: str | None) -> None:
+    """A1: remember when a deal was posted to Discord and which message it was."""
+    if DRY_RUN:
+        return
+    requests.patch(f"{os.environ['SUPABASE_URL']}/rest/v1/{TABLE}", headers=sb_headers(), timeout=20,
+                   params={"item_id": f"eq.{item_id}"},
+                   json={"posted_at": datetime.now(timezone.utc).isoformat(), "discord_msg_id": msg_id, "live_checks": 0})
+
+
+def survival_due(posted_at: datetime, checks_done: int, now: datetime) -> bool:
+    """Is the next survival check for this alert due yet?"""
+    return checks_done < len(SURVIVAL_MIN) and now >= posted_at + timedelta(minutes=SURVIVAL_MIN[checks_done])
+
+
+def survival_checks(token: str) -> None:
+    """A1: for deals posted in the last ~25 minutes, check at ~1, 2, 3, 5, 10 and 20 minutes whether they can
+    still be bought, and record when they went. About 6 eBay calls per posted deal."""
+    if DRY_RUN:
+        return
+    now = datetime.now(timezone.utc)
+    rows = sb_get({"select": "item_id,title,all_in,posted_at,live_checks", "posted_at": f"gte.{(now - timedelta(minutes=25)).isoformat()}",
+                   "gone_at": "is.null", "live_checks": f"lt.{len(SURVIVAL_MIN)}", "limit": "20"})
+    for row in rows:
+        posted = datetime.fromisoformat(row["posted_at"].replace("Z", "+00:00"))
+        done = int(row.get("live_checks") or 0)
+        if not survival_due(posted, done, now):
+            continue
+        USAGE["ebay"] += 1
+        r = requests.get(f"{EBAY_API}/buy/browse/v1/item/{row['item_id']}", headers=ebay_headers(token), timeout=20)
+        mins = round((now - posted).total_seconds() / 60, 1)
+        if r.status_code == 404 or (r.ok and any(a.get("estimatedAvailabilityStatus") == "OUT_OF_STOCK"
+                                                  for a in r.json().get("estimatedAvailabilities") or [])):
+            patch = {"gone_at": now.isoformat(), "outcome": "gone", "live_checks": done + 1, "last_checked": now.isoformat()}
+            LOG.append(f"⏱️ {short(row)}: gone {mins} min after posting")
+        elif r.ok:
+            patch = {"last_live_at": now.isoformat(), "live_checks": done + 1, "last_checked": now.isoformat()}
+            LOG.append(f"⏱️ {short(row)}: still for sale {mins} min after posting")
+        else:
+            continue                                            # eBay hiccup: try again next run
+        requests.patch(f"{os.environ['SUPABASE_URL']}/rest/v1/{TABLE}", headers=sb_headers(), timeout=20,
+                       params={"item_id": f"eq.{row['item_id']}"}, json=patch)
+
+
 def track_outcomes(token: str) -> None:
     """Feedback loop: re-check a few earlier alerts each run and record when they disappear (sold or ended)."""
     n = CONFIG.get("track_per_run", 5)
@@ -737,14 +783,19 @@ STYLE = {
 }
 
 
-def post_discord(payload: dict, daily: bool = False) -> None:
+def post_discord(payload: dict, daily: bool = False) -> str | None:
+    """Posts to Discord and returns the new message's id (so the card can be found again later)."""
     url = (os.getenv("DISCORD_DAILY_WEBHOOK_URL") if daily else None) or os.environ["DISCORD_WEBHOOK_URL"]
-    r = requests.post(url, json=payload, timeout=20)
+    r = requests.post(url, params={"wait": "true"}, json=payload, timeout=20)
     if r.status_code == 429:                                  # Discord rate limit: wait and retry once
         time.sleep(float(r.json().get("retry_after", 2)) + 0.5)
-        r = requests.post(url, json=payload, timeout=20)
+        r = requests.post(url, params={"wait": "true"}, json=payload, timeout=20)
     r.raise_for_status()
     time.sleep(0.6)
+    try:
+        return str(r.json().get("id") or "") or None
+    except (ValueError, AttributeError, TypeError):            # no id in the reply: the alert still went out
+        return None
 
 
 def post_logs() -> None:
@@ -774,7 +825,7 @@ def short(row: dict) -> str:
     return f"{row.get('title', '')[:60]} · £{float(row.get('all_in') or 0):.0f}"
 
 
-def discord_alert(row: dict) -> None:
+def discord_alert(row: dict) -> str | None:
     key = ("HOT" if row["rating"] == "HOT" else
            "UNCONFIRMED" if row["lane"] == "UNCONFIRMED" else
            "GEM" if row["lane"] == "GEM" else row["verdict"])
@@ -802,7 +853,7 @@ def discord_alert(row: dict) -> None:
     payload = {"embeds": [embed], "allowed_mentions": {"parse": ["everyone"] if ping else []}}
     if ping:
         payload["content"] = "@everyone 🔥 Hot one, act fast" if key == "HOT" else "@everyone 🟢 Good deal"
-    post_discord(payload)
+    return post_discord(payload)
 
 
 # ---------- main ----------
@@ -989,11 +1040,16 @@ def main() -> int:
         if i:
             time.sleep(gap)
         try:
-            discord_alert(row)
+            msg_id = discord_alert(row)
+            mark_posted(row["item_id"], msg_id)
         except requests.RequestException as e:
             print(f"Discord failed for {row['item_id']}: {e}", file=sys.stderr)
             failed.append(row["item_id"])
     sb_set_status(failed, "retry")                    # picked up again on the next run
+    try:
+        survival_checks(token)
+    except requests.RequestException as e:
+        print(f"Survival checks skipped: {e}", file=sys.stderr)
     try:
         if full:
             track_outcomes(token)
