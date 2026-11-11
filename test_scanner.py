@@ -509,3 +509,45 @@ _FakeDT.m = 1; odd = _picked(); _FakeDT.m = 2; even = _picked()
 s.datetime = _old_dt
 check18("Xbox every 2 minutes, others every minute", (sorted(odd), sorted(even)), (["ps5pro", "quest3"], ["ps5pro", "quest3", "xboxsx"]))
 print(f"3 categories + Xbox rules: {sum(R18)}/{len(R18)} passed")
+
+# --- 19. eBay token is reused for ~2 hours instead of fetched every run (12 Nov 2026) ---
+import os, json
+from collections import Counter
+R19 = []
+def check19(name, got, want):
+    ok = got == want; R19.append(ok); print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"  got {got!r}, want {want!r}"))
+class _R:
+    def __init__(self, code=200, j=None): self.status_code = code; self.ok = code < 400; self._j = j
+    def json(self): return self._j
+    def raise_for_status(self):
+        if not self.ok: raise s.requests.HTTPError(str(self.status_code))
+_store, _calls = {}, Counter()
+def _tget(url, **k):
+    _calls["get"] += 1
+    v = _store.get(s.TOKEN_KEY)
+    return _R(200, [{"value": v}] if v else [])
+def _tpost(url, **k):
+    if "oauth2/token" in url:
+        _calls["ebay_token"] += 1
+        return _R(200, {"access_token": f"tok{_calls['ebay_token']}", "expires_in": 7200})
+    _store[k["json"]["key"]] = k["json"]["value"]; return _R(201)
+def _tdel(url, **k):
+    _store.pop(s.TOKEN_KEY, None); return _R(204)
+_saved = (s.requests.get, s.requests.post, s.requests.delete, s.DRY_RUN, dict(os.environ))
+s.requests.get, s.requests.post, s.requests.delete, s.DRY_RUN = _tget, _tpost, _tdel, False
+os.environ.update(SUPABASE_URL="https://x.supabase.co", SUPABASE_SERVICE_KEY="k", EBAY_CLIENT_ID="a", EBAY_CLIENT_SECRET="b")
+t1 = s.ebay_token(); t2 = s.ebay_token()
+check19("first run asks eBay for a token", t1, "tok1")
+check19("next run reuses it (no new eBay token call)", (t2, _calls["ebay_token"]), ("tok1", 1))
+_store[s.TOKEN_KEY] = json.dumps({"t": "old", "exp": (s.datetime.now(s.timezone.utc) + s.timedelta(minutes=5)).isoformat()})
+check19("token about to expire (<10 min) is replaced", s.ebay_token(), "tok2")
+s.forget_ebay_token()
+check19("a rejected token is forgotten, next run gets a new one", s.ebay_token(), "tok3")
+_store[s.TOKEN_KEY] = "not json"
+check19("broken cache row doesn't crash, just fetches a new token", s.ebay_token(), "tok4")
+def _down(url, **k): raise s.requests.ConnectionError("db down")
+s.requests.get = _down
+check19("database down: still gets a token from eBay", s.ebay_token(), "tok5")
+s.requests.get, s.requests.post, s.requests.delete, s.DRY_RUN = _saved[:4]
+os.environ.clear(); os.environ.update(_saved[4])
+print(f"Token reuse: {sum(R19)}/{len(R19)} passed")

@@ -324,7 +324,48 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
 
 # ---------- eBay ----------
 
+TOKEN_KEY = "ebay_app_token"     # bot_state row holding the cached eBay application token + its expiry
+
+
 def ebay_token() -> str:
+    """Reuse the eBay application token (valid ~2 hours) instead of asking eBay for a new one every run."""
+    base = os.getenv("SUPABASE_URL")
+    if base and not DRY_RUN:
+        try:
+            st = requests.get(f"{base}/rest/v1/bot_state", headers=sb_headers(), timeout=15,
+                              params={"select": "value", "key": f"eq.{TOKEN_KEY}"}).json()
+            if st:
+                saved = json.loads(st[0]["value"])
+                if datetime.fromisoformat(saved["exp"]) > datetime.now(timezone.utc) + timedelta(minutes=10):
+                    LOG.append("🔑 eBay token: reused")
+                    return saved["t"]
+        except (requests.RequestException, KeyError, ValueError, TypeError, IndexError) as e:
+            print(f"Token cache read skipped: {e}", file=sys.stderr)
+    token, life = _new_ebay_token()
+    LOG.append("🔑 eBay token: new")
+    if base and not DRY_RUN:
+        exp = (datetime.now(timezone.utc) + timedelta(seconds=int(life))).isoformat()
+        try:
+            requests.post(f"{base}/rest/v1/bot_state", timeout=15,
+                          headers={**sb_headers(), "Prefer": "resolution=merge-duplicates"},
+                          json={"key": TOKEN_KEY, "value": json.dumps({"t": token, "exp": exp})})
+        except requests.RequestException as e:
+            print(f"Token cache save skipped: {e}", file=sys.stderr)
+    return token
+
+
+def forget_ebay_token() -> None:
+    """eBay said the token is no good (401): drop the cached one so the next run fetches a fresh token."""
+    base = os.getenv("SUPABASE_URL")
+    if base and not DRY_RUN:
+        try:
+            requests.delete(f"{base}/rest/v1/bot_state", headers=sb_headers(), timeout=15,
+                            params={"key": f"eq.{TOKEN_KEY}"})
+        except requests.RequestException:
+            pass
+
+
+def _new_ebay_token() -> tuple[str, int]:
     creds = f"{os.environ['EBAY_CLIENT_ID'].strip()}:{os.environ['EBAY_CLIENT_SECRET'].strip()}"
     r = requests.post(
         f"{EBAY_API}/identity/v1/oauth2/token",
@@ -349,7 +390,8 @@ def ebay_token() -> str:
                 kind = "unrecognised"
             print(f"  {name}: length {len(v)}, {env}, {kind}")
     r.raise_for_status()
-    return r.json()["access_token"]
+    j = r.json()
+    return j["access_token"], int(j.get("expires_in") or 7200)
 
 
 def ebay_headers(token):
@@ -362,6 +404,8 @@ def ebay_search(token: str, cat: dict, query: str) -> list[dict]:
     USAGE["ebay"] += 1
     r = requests.get(f"{EBAY_API}/buy/browse/v1/item_summary/search", headers=ebay_headers(token),
                      params={"q": query, "filter": filters, "sort": "newlyListed", "limit": 50}, timeout=20)
+    if r.status_code == 401:
+        forget_ebay_token()                                   # cached token rejected: next run gets a new one
     r.raise_for_status()
     return r.json().get("itemSummaries", [])
 
