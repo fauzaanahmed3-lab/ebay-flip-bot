@@ -451,13 +451,40 @@ def survival_due(posted_at: datetime, checks_done: int, now: datetime) -> bool:
     return checks_done < len(SURVIVAL_MIN) and now >= posted_at + timedelta(minutes=SURVIVAL_MIN[checks_done])
 
 
+def mark_card_gone(msg_id: str | None, posted_at: str | None, now: datetime) -> None:
+    """A3: edit the deal's Discord card to show it has gone (grey, '❌ Gone after X min'). Editing never pings anyone."""
+    url = os.getenv("DISCORD_WEBHOOK_URL")
+    if not msg_id or not url or DRY_RUN:
+        return
+    mins = None
+    if posted_at:
+        mins = round((now - datetime.fromisoformat(posted_at.replace("Z", "+00:00"))).total_seconds() / 60)
+    when = f"Gone after {mins} min" if mins is not None and mins < 120 else "Gone"
+    try:
+        r = requests.get(f"{url}/messages/{msg_id}", timeout=15)
+        if not r.ok:
+            return
+        embeds = r.json().get("embeds") or []
+        if embeds:
+            e = embeds[0]
+            e["color"] = 0x808080
+            if not str(e.get("title", "")).startswith("❌"):
+                e["title"] = ("❌ GONE · " + str(e.get("title", "")))[:256]
+            e["fields"] = [f for f in e.get("fields") or [] if f.get("name") != "❌ Status"] + [
+                {"name": "❌ Status", "value": f"{when} (sold or ended on eBay)", "inline": False}]
+        requests.patch(f"{url}/messages/{msg_id}", timeout=15,
+                       json={"content": f"❌ {when}", "embeds": embeds, "allowed_mentions": {"parse": []}})
+    except (requests.RequestException, ValueError, KeyError, TypeError) as e:
+        print(f"Card edit skipped: {e}", file=sys.stderr)
+
+
 def survival_checks(token: str) -> None:
     """A1: for deals posted in the last ~25 minutes, check at ~1, 2, 3, 5, 10 and 20 minutes whether they can
     still be bought, and record when they went. About 6 eBay calls per posted deal."""
     if DRY_RUN:
         return
     now = datetime.now(timezone.utc)
-    rows = sb_get({"select": "item_id,title,all_in,posted_at,live_checks", "posted_at": f"gte.{(now - timedelta(minutes=25)).isoformat()}",
+    rows = sb_get({"select": "item_id,title,all_in,posted_at,live_checks,discord_msg_id", "posted_at": f"gte.{(now - timedelta(minutes=25)).isoformat()}",
                    "gone_at": "is.null", "live_checks": f"lt.{len(SURVIVAL_MIN)}", "limit": "20"})
     for row in rows:
         posted = datetime.fromisoformat(row["posted_at"].replace("Z", "+00:00"))
@@ -471,6 +498,7 @@ def survival_checks(token: str) -> None:
                                                   for a in r.json().get("estimatedAvailabilities") or [])):
             patch = {"gone_at": now.isoformat(), "outcome": "gone", "live_checks": done + 1, "last_checked": now.isoformat()}
             LOG.append(f"⏱️ {short(row)}: gone {mins} min after posting")
+            mark_card_gone(row.get("discord_msg_id"), row["posted_at"], now)
         elif r.ok:
             patch = {"last_live_at": now.isoformat(), "live_checks": done + 1, "last_checked": now.isoformat()}
             LOG.append(f"⏱️ {short(row)}: still for sale {mins} min after posting")
@@ -487,7 +515,7 @@ def track_outcomes(token: str) -> None:
         return
     week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     hour_ago = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
-    rows = sb_get({"select": "item_id,first_seen", "status": "neq.rejected", "verdict": "in.(DEAL,OFFER)",
+    rows = sb_get({"select": "item_id,first_seen,posted_at,discord_msg_id", "status": "neq.rejected", "verdict": "in.(DEAL,OFFER)",
                    "outcome": "is.null", "and": f"(first_seen.gte.{week_ago},first_seen.lte.{hour_ago})",
                    "order": "last_checked.asc.nullsfirst", "limit": str(n)})
     now = datetime.now(timezone.utc).isoformat()
@@ -500,11 +528,13 @@ def track_outcomes(token: str) -> None:
         if r.status_code == 404:
             patch.update(outcome="gone", gone_at=now)          # sold or ended since the last check
             LOG.append(f"📦 Tracker: {row['item_id']} has gone (sold or ended)")
+            mark_card_gone(row.get("discord_msg_id"), row.get("posted_at"), datetime.now(timezone.utc))
         elif r.ok:
             d = r.json()
             if any(a.get("estimatedAvailabilityStatus") == "OUT_OF_STOCK" for a in d.get("estimatedAvailabilities") or []):
                 patch.update(outcome="gone", gone_at=now)
                 LOG.append(f"📦 Tracker: {row['item_id']} sold out")
+                mark_card_gone(row.get("discord_msg_id"), row.get("posted_at"), datetime.now(timezone.utc))
             else:
                 patch["current_price"] = float((d.get("price") or {}).get("value") or 0) or None
                 if row["first_seen"] < (datetime.now(timezone.utc) - timedelta(days=6, hours=23)).isoformat():

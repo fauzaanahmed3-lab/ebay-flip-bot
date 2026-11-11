@@ -628,3 +628,28 @@ check21("live deal still posts", "✅" in _log and "DEAL, posting" in _log, True
 for n, v in _keep21.items(): setattr(s, n, v)
 s.requests.get = _get21; s.LOG.clear(); s.GONE.clear()
 print(f"A2 don't ping the dead: {sum(R21)}/{len(R21)} passed")
+
+# --- 22. A3: edit the Discord card when a deal has gone (12 Nov 2026) ---
+R22 = []
+def check22(name, got, want):
+    ok = got == want; R22.append(ok); print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"  got {got!r}, want {want!r}"))
+_sent22 = []
+class _M:
+    status_code = 200; ok = True
+    def json(self): return {"id": "m1", "embeds": [{"title": "Sony PS5 Pro 2TB", "color": 0xFF0000,
+                                                    "fields": [{"name": "💷 Price", "value": "£740"}]}]}
+_keep22 = (s.requests.get, s.requests.patch, s.DRY_RUN, dict(os.environ))
+s.requests.get = lambda url, **k: _M()
+s.requests.patch = lambda url, **k: _sent22.append((url, k["json"]))
+s.DRY_RUN = False; os.environ["DISCORD_WEBHOOK_URL"] = "https://discord.test/hook"
+_now22 = s.datetime(2026, 11, 12, 10, 3, tzinfo=s.timezone.utc)
+s.mark_card_gone("m1", "2026-11-12T10:01:00+00:00", _now22)
+_u, _j = _sent22[0]
+check22("edits that exact message", _u, "https://discord.test/hook/messages/m1")
+check22("card says gone after 2 min", (_j["content"], _j["embeds"][0]["title"]), ("❌ Gone after 2 min", "❌ GONE · Sony PS5 Pro 2TB"))
+check22("card turns grey and keeps its price", (_j["embeds"][0]["color"], _j["embeds"][0]["fields"][0]["value"]), (0x808080, "£740"))
+check22("edit never pings anyone", _j["allowed_mentions"], {"parse": []})
+_sent22.clear(); s.mark_card_gone(None, None, _now22)
+check22("alerts from before A1 (no message id) are left alone", _sent22, [])
+s.requests.get, s.requests.patch, s.DRY_RUN = _keep22[:3]; os.environ.clear(); os.environ.update(_keep22[3])
+print(f"A3 gone cards: {sum(R22)}/{len(R22)} passed")
