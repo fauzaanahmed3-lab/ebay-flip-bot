@@ -291,14 +291,15 @@ def check11(name, got, want):
     ok = got == want
     print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
     R11.append(ok)
-c = s.triage(CATS["ps5pro"], item("Sony PlayStation 5 Pro 2TB Console boxed", 760, 0, fb=200))
-check11("PS5 Pro at £760 found (over the £500 cap)", c is not None and c["model"], "PS5 Pro 2TB")
+c = s.triage(CATS["ps5pro"], item("Sony PlayStation 5 Pro 2TB Console boxed", 740, 0, fb=200))
+check11("PS5 Pro at £740 found (over the £500 cap)", c is not None and c["model"], "PS5 Pro 2TB")
 check11("PS5 Pro at £880 too dear", s.triage(CATS["ps5pro"], item("PS5 Pro console 2TB", 880, 0, fb=200)), None)
 check11("DualSense Edge rejected", s.triage(CATS["ps5pro"], item("PS5 Pro DualSense Edge controller", 150, fb=200)), None)
 check11("normal PS5 category still skips Pro", s.triage(CATS["ps5"], item("PS5 Pro 2TB console", 400, fb=200)), None)
 check11("other categories still capped at £500", s.buy_target(2000, 10) <= 500, True)
-r = run("ps5pro", item("Sony PlayStation 5 Pro 2TB Console boxed", 760, 0, fb=200), details())
-check11("PS5 Pro £760 is a DEAL needing £100", (r["verdict"], r["required_profit"]), ("DEAL", 100))
+check11("PS5 Pro at £760 (+£20 fee = over £770 max) too dear since 11 Nov", s.triage(CATS["ps5pro"], item("PS5 Pro console 2TB boxed", 760, 0, fb=200)), None)
+r = run("ps5pro", item("Sony PlayStation 5 Pro 2TB Console boxed", 740, 0, fb=200), details())
+check11("PS5 Pro £740 is a DEAL needing £100", (r["verdict"], r["required_profit"]), ("DEAL", 100))
 print(f"PS5 Pro: {sum(R11)}/{len(R11)} passed")
 
 # ---- AI check + fast scans (8 Nov) ----
@@ -379,7 +380,7 @@ def check15(name, got, want):
     ok = got == want
     print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
     R15.append(ok)
-r = s.triage(CATS["ps5pro"], item("Sony PS5 Pro 2TB with 2 controllers", 780, 0, fb=200))
+r = s.triage(CATS["ps5pro"], item("Sony PS5 Pro 2TB with 2 controllers", 740, 0, fb=200))
 check15("'PS5 Pro with 2 controllers' is now a real candidate", (r or {}).get("lane"), "EXACT")
 s.SOFT.clear()
 check15("'missing original box' isn't thrown away...", s.triage(CATS["ps5"], item("PS5 Slim Disc console, missing original box", 380, 0, fb=200)), None)

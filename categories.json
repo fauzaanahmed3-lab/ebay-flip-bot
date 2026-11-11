@@ -886,7 +886,7 @@
       ],
       "price_min": 500,
       "post_out": 15,
-      "max_buy": 900,
+      "max_buy": 770,
       "family": "\\b(ps5|playstation ?5) ?pro\\b",
       "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b|\\bpro\\b.*\\b2 ?tb\\b",
       "wrong": [
@@ -933,15 +933,16 @@
         {
           "name": "PS5 Pro 2TB",
           "match": "\\bpro\\b",
-          "strong": 930,
-          "typical": 899,
+          "strong": 920,
+          "typical": 870,
           "note": "High-value item: insure postage, check serial, power-on video from the seller."
         }
       ],
       "price_max": 912,
       "fast": true,
       "ai_hint": "Sony PlayStation 5 Pro console, 2TB (NOT a regular PS5, not a DualSense Edge or other controller on its own). Must include at least one controller.",
-      "needs_controller": true
+      "needs_controller": true,
+      "prices_note": "Re-checked 11 Nov 2026: plain used sold median ~£870 (shown price incl. buyer fee), top 15% ~£937; new in shops £789.99 when in stock. Max buy £770 so a used one never costs more than new."
     }
   ],
   "phone_rules": {
