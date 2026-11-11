@@ -589,3 +589,42 @@ check20("live listing recorded as still for sale", ("last_live_at" in _p["live1"
 check20("alert posted 20 s ago is not checked yet", "notdue" in _p, False)
 s.requests.get, s.requests.patch, s.DRY_RUN = _saved20[:3]; os.environ.clear(); os.environ.update(_saved20[3])
 print(f"A1 survival tracking: {sum(R20)}/{len(R20)} passed")
+
+# --- 21. A2: don't ping deals that have already sold or ended (12 Nov 2026) ---
+R21 = []
+def check21(name, got, want):
+    ok = got == want; R21.append(ok); print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"  got {got!r}, want {want!r}"))
+_n = s.datetime(2026, 11, 12, 10, 0, tzinfo=s.timezone.utc)
+check21("sold out = ended", s.ended({"estimatedAvailabilities": [{"estimatedAvailabilityStatus": "OUT_OF_STOCK"}]}, _n), True)
+check21("end date in the past = ended", s.ended({"itemEndDate": "2026-11-12T09:59:00.000Z"}, _n), True)
+check21("in stock, ends next month = not ended", s.ended({"estimatedAvailabilities": [{"estimatedAvailabilityStatus": "IN_STOCK"}],
+                                                        "itemEndDate": "2026-12-12T10:00:00.000Z"}, _n), False)
+check21("no info = not ended", s.ended({}, _n), False)
+# whole run (dry run, fake eBay): one sold-out deal, one 404, one live deal
+_it = lambda iid, price: {**item("Sony PlayStation 5 Pro 2TB Console boxed", price, 0, fb=200), "itemId": iid}
+_det_live = details(); _det_sold = {**details(), "estimatedAvailabilities": [{"estimatedAvailabilityStatus": "OUT_OF_STOCK"}]}
+class _R404:
+    status_code = 404; ok = False
+    def json(self): return {}
+class _R200:
+    def __init__(self, j): self.status_code = 200; self.ok = True; self._j = j
+    def json(self): return self._j
+def _iget(url, **k):
+    iid = url.rsplit("/", 1)[1]
+    return _R404() if iid == "v|404|0" else _R200(_det_sold if iid == "v|sold|0" else _det_live)
+_keep21 = {n: getattr(s, n) for n in ("ebay_token", "ebay_search", "already_seen", "full_scan_due", "ai_check", "screen_soft", "DRY_RUN")}
+_get21 = s.requests.get
+s.ebay_token = lambda: "tok"; s.full_scan_due = lambda: False; s.already_seen = lambda ids: {}
+s.screen_soft = lambda old, ids, fresh: []; s.ai_check = lambda cat, row, d: ("yes", "ok", "fake")
+s.ebay_search = lambda tok, cat, q: [_it("v|sold|0", 700), _it("v|404|0", 705), _it("v|live|0", 710)] if cat["id"] == "ps5pro" else []
+s.requests.get = _iget; s.DRY_RUN = True; s.LOG.clear(); s.GONE.clear()
+import io, contextlib
+with contextlib.redirect_stdout(io.StringIO()):
+    s.main()
+_log = "\n".join(s.LOG)
+check21("sold-out deal not posted, logged as gone", "🫥" in _log and "would have been a DEAL" in _log, True)
+check21("404 deal not posted, logged as gone", _log.count("sold or ended before we saw it"), 2)
+check21("live deal still posts", "✅" in _log and "DEAL, posting" in _log, True)
+for n, v in _keep21.items(): setattr(s, n, v)
+s.requests.get = _get21; s.LOG.clear(); s.GONE.clear()
+print(f"A2 don't ping the dead: {sum(R21)}/{len(R21)} passed")

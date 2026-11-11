@@ -410,10 +410,28 @@ def ebay_search(token: str, cat: dict, query: str) -> list[dict]:
     return r.json().get("itemSummaries", [])
 
 
+GONE: set[str] = set()   # A2: listings eBay says no longer exist (404) when we look them up
+
+
 def ebay_item(token: str, item_id: str) -> dict | None:
     USAGE["ebay"] += 1
     r = requests.get(f"{EBAY_API}/buy/browse/v1/item/{item_id}", headers=ebay_headers(token), timeout=20)
+    if r.status_code == 404:
+        GONE.add(item_id)
     return r.json() if r.ok else None
+
+
+def ended(details: dict, now: datetime | None = None) -> bool:
+    """A2: the listing details say it has sold out or already ended, so there's nothing left to buy."""
+    if any(a.get("estimatedAvailabilityStatus") == "OUT_OF_STOCK" for a in details.get("estimatedAvailabilities") or []):
+        return True
+    end = details.get("itemEndDate")
+    if end:
+        try:
+            return datetime.fromisoformat(end.replace("Z", "+00:00")) <= (now or datetime.now(timezone.utc))
+        except ValueError:
+            return False
+    return False
 
 
 SURVIVAL_MIN = [1, 2, 3, 5, 10, 20]      # A1: re-check each posted deal about this many minutes after posting
@@ -981,8 +999,19 @@ def main() -> int:
             continue                                    # never alert unchecked listings; they're picked up next run
         details = ebay_item(token, c["item_id"])
         lookups += 1
+        gone_now = {"status": "gone_before_post", "outcome": "gone", "gone_at": datetime.now(timezone.utc).isoformat()}
         if details is None:
-            LOG.append(f"❔ {short(c)}: listing details unavailable")
+            if c["item_id"] in GONE:                     # A2: sold or ended before we even saw it, so never ping it
+                LOG.append(f"🫥 {short(c)}: sold or ended before we saw it, not posted")
+                results.append({**{k: v for k, v in c.items() if k not in DROP}, "verdict": "REJECT", **gone_now})
+            else:
+                LOG.append(f"❔ {short(c)}: listing details unavailable")
+            continue
+        if ended(details):
+            row = score(cat, c, details)
+            LOG.append(f"🫥 {short(row or c)}: sold or ended before we saw it, not posted"
+                       + (f" (would have been a {row['verdict']})" if row and row["verdict"] != "REJECT" else ""))
+            results.append({**(row or {**{k: v for k, v in c.items() if k not in DROP}, "verdict": "REJECT"}), **gone_now})
             continue
         row = score(cat, c, details)
         if row and c.get("rescued"):
@@ -1031,7 +1060,7 @@ def main() -> int:
         report_usage()
         return 0
     failed = []
-    alerts = [r for r in saved if r["verdict"] == "DEAL" and not quiet(r) and r.get("status") != "ai_rejected"]
+    alerts = [r for r in saved if r["verdict"] == "DEAL" and not quiet(r) and r.get("status") not in ("ai_rejected", "gone_before_post")]
     rank = {"HOT": 0, "SOLID": 1}
     alerts.sort(key=lambda r: (rank.get(r.get("rating"), 2), r["verdict"] != "DEAL", -float(r.get("profit") or 0)))
     # drip-feed: best first, then about one a minute, all done before the next 10-minute scan
