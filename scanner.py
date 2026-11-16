@@ -112,7 +112,7 @@ def cat_target(cat: dict, model: dict) -> float:
     t = buy_target(model["strong"], cat["post_out"], cat.get("max_buy"))
     msp = cat.get("min_safe_profit")
     if msp:
-        t = min(t, round(model.get("typical", model["strong"]) - cat["post_out"] - PACK - msp, 2))
+        t = min(t, round(net_sale(model.get("typical", model["strong"])) - cat["post_out"] - PACK - msp, 2))
     return t
 
 
@@ -123,7 +123,7 @@ def offer_target(cat: dict, model: dict) -> float | None:
     if not lane:
         return None
     cap = cat.get("max_buy", CONFIG.get("max_buy", 10**6))
-    return round(min(cap, model.get("typical", model["strong"]) - cat["post_out"] - PACK - lane["min_safe_profit"]), 2)
+    return round(min(cap, net_sale(model.get("typical", model["strong"])) - cat["post_out"] - PACK - lane["min_safe_profit"]), 2)
 
 
 def in_offer_lane(cat: dict, model: dict, all_in: float, best_offer: bool) -> bool:
@@ -142,9 +142,15 @@ NO_PAD = re.compile(r"console only\b(?! (used|been|had|played|ever|a few|once|tw
                     r"(doesn'?t|does not) come with (a |the |any )?(controllers?|pads?)")
 
 
+def net_sale(price: float) -> float:
+    """What we really receive for a resale. The sold prices we track are what buyers paid, and for private
+    sellers that already includes eBay's buyer protection fee, so we keep the price minus that fee."""
+    return round(price - buyer_fee(price), 2)
+
+
 def _buy_target(strong: float, post_out: float) -> float:
     """Highest price we can pay and still make that price band's required profit."""
-    net = strong - post_out - PACK
+    net = net_sale(strong) - post_out - PACK
     best = 0.0
     for lo, hi, need in PROFIT_TIERS:
         t = min(net - need, hi - 0.01)
@@ -239,6 +245,18 @@ def triage(cat: dict, item: dict) -> dict | None:
 
 DROP = ("best_offer", "model", "condition", "ship_known", "fee", "soft_reason", "rescued")          # working fields, not stored
 
+def too_cheap_to_be_true(cat: dict, model: dict, all_in: float, condition: str) -> str | None:
+    """B3: a price so low it smells like a scam. True if under 75% of the model's typical resale price, or if it is
+    listed as new/sealed but below the category's 'new_shop_price' (what a shop charges new). Returns the reason."""
+    typical = model.get("typical", model["strong"])
+    if all_in < 0.75 * typical:
+        return f"£{all_in:.0f} is under 75% of the usual £{typical:.0f}."
+    shop = cat.get("new_shop_price")
+    if shop and condition.lower().startswith(("new", "brand new", "sealed")) and all_in < shop:
+        return f"Listed as new at £{all_in:.0f}, well under the ~£{shop} shop price."
+    return None
+
+
 def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
     notes = []
     aspects = ""
@@ -284,7 +302,9 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
     elif cand["best_offer"] and all_in <= target * (1 + offer_zone(cat)):
         verdict = "OFFER"
         fee_rate = 1 if cand.get("fee") else 0
-        suggested_offer = int(target - ship - fee_rate * buyer_fee(target - ship))   # offer + postage + fee = target
+        ot = offer_target(cat, model)                          # offer lane categories: never suggest more than the lane allows
+        aim = min(target, ot) if ot else target
+        suggested_offer = int(aim - ship - fee_rate * buyer_fee(aim - ship))   # offer + postage + fee = aim
     elif lane in ("EXACT", "GEM") and in_offer_lane(cat, model, all_in, cand["best_offer"]):
         verdict, offer_lane = "OFFER", True                    # not good enough for #deals, fine for #send-an-offer
         ot = offer_target(cat, model)
@@ -295,8 +315,8 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
         return None
 
     pay = (suggested_offer + ship + (buyer_fee(suggested_offer) if cand.get("fee") else 0)) if suggested_offer else all_in
-    profit = round(model["strong"] - cat["post_out"] - PACK - pay, 2)
-    safe_profit = round(model.get("typical", model["strong"]) - cat["post_out"] - PACK - pay, 2)
+    profit = round(net_sale(model["strong"]) - cat["post_out"] - PACK - pay, 2)
+    safe_profit = round(net_sale(model.get("typical", model["strong"])) - cat["post_out"] - PACK - pay, 2)
     need = max(required_profit(pay), cat.get("min_safe_profit") or 0)
     if offer_lane:
         need = cat["offer_channel"]["min_safe_profit"]
@@ -316,9 +336,11 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
         notes.append("Postage not stated (maybe collection only). Check before counting on this price.")
     if returns_ok is False:
         notes.append("No returns accepted.")
-    if all_in < model["strong"] * 0.5:
-        notes.append("Unusually cheap. Rule out fake, wrong model or hidden fault.")
-    if (cand.get("condition") or "").lower().startswith(("new", "open", "brand new")):
+    cond = (cand.get("condition") or "").lower()
+    too_cheap = too_cheap_to_be_true(cat, model, all_in, cond)
+    if too_cheap:
+        notes.append(f"⚠️ Too cheap to be true? {too_cheap} Check for a scam, a fake or a hijacked seller account before paying.")
+    if cond.startswith(("new", "open", "brand new")):
         notes.append(f"Listed as '{cand['condition']}'. Unused stock at a used price is a strong sign, but confirm it's genuine.")
     if model.get("note"):
         notes.append(model["note"])
@@ -333,6 +355,13 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
     elif verdict == "OFFER":
         notes.append(f"Listed above target. Offer £{suggested_offer}; walk away if they won't go below target.")
 
+    # B6: rough profit if we sold as a business instead (approximate eBay UK business final value fee)
+    # A business seller's buyer pays no buyer protection fee, so the business gets the full price, minus eBay's fee.
+    strong_gross = model["strong"]
+    business_profit = round(profit + (strong_gross - net_sale(strong_gross))
+                            - (strong_gross * CONFIG.get("business_fee_pct", 0.075) + CONFIG.get("business_fee_fixed", 0.30)), 2)
+    notes.append(f"If you sell as a business: about £{business_profit:.0f} profit (fees approx.)")
+
     # ---- rating ----
     fast_seller = (cat.get("weekly_sales") or 0) >= 10
     if (lane in ("EXACT", "GEM") and trusted and verdict == "DEAL" and cand.get("ship_known", True)
@@ -346,6 +375,8 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
             notes.append(f"Thin margin unless it sells well: ~£{safe_profit:.0f} at an average price.")
     else:
         rating = "SOLID"
+    if too_cheap and rating == "HOT":
+        rating = "CHECK"                                   # a price this low is never a "buy fast" until a human checks it
 
     return {**{k: v for k, v in cand.items() if k not in DROP},
             "safe_profit": safe_profit, "variant": model["name"], "lane": lane, "verdict": verdict, "rating": rating,
@@ -586,7 +617,9 @@ Decide if this listing is a COMPLETE, WORKING {model} that can be resold as one.
 Answer "no" if: it is an accessory, box, game, part, code or a different product/model; it is faulty, broken, for parts, untested, locked or banned; or the photo clearly shows a different item or serious damage.
 Answer "unsure" if key facts are missing (e.g. stock photo plus vague text, or main parts like controllers/charger missing).
 {extra}Otherwise answer "yes".
-Reply with JSON only: {{"verdict": "yes|no|unsure", "reason": "max 15 words"}}
+If (and only if) you answer "no", also give "code", exactly one of: accessory, different_model, faulty, missing_essential_part, not_the_item, other.
+Never answer "no" because the price looks low, or because of your own beliefs about model numbers or serial numbers; use "unsure" if that is your only worry.
+Reply with JSON only: {{"verdict": "yes|no|unsure", "code": "reason code, only for no", "reason": "max 15 words"}}
 
 LISTING
 Title: {title}
@@ -604,6 +637,16 @@ PAD_RULE = """It MUST come with at least one working controller (as standard in 
 
 def _strip_html(h: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", h or "")).strip()
+
+
+BLOCK_CODES = ("accessory", "different_model", "faulty", "missing_essential_part", "not_the_item")   # the only reasons allowed to block
+
+
+def apply_ai_rules(verdict: str, code: str | None, reason: str) -> tuple[str, str]:
+    """B2: the AI may only block (say "no") for a listed reason code. Any other "no" becomes "unsure" so a human looks."""
+    if verdict == "no" and (code or "").strip().lower() not in BLOCK_CODES:
+        return "unsure", ("(AI wanted to block for an unlisted reason) " + reason)[:160]
+    return verdict, reason
 
 
 def ai_check(cat: dict, row: dict, details: dict) -> tuple[str, str, str]:
@@ -629,7 +672,7 @@ def ai_check(cat: dict, row: dict, details: dict) -> tuple[str, str, str]:
         except requests.RequestException:
             pass
     body = {"contents": [{"parts": parts}],
-            "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "maxOutputTokens": 120}}
+            "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "maxOutputTokens": 160}}
     for model in CONFIG.get("ai_models", ["gemini-3.5-flash-lite", "gemini-2.5-flash-lite"]):
         try:
             r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
@@ -647,7 +690,9 @@ def ai_check(cat: dict, row: dict, details: dict) -> tuple[str, str, str]:
             text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
             out = json.loads(text[text.find("{"): text.rfind("}") + 1])
             verdict = str(out.get("verdict", "unsure")).lower()
-            return (verdict if verdict in ("yes", "no", "unsure") else "unsure"), str(out.get("reason", ""))[:120], model
+            verdict = verdict if verdict in ("yes", "no", "unsure") else "unsure"
+            verdict, reason = apply_ai_rules(verdict, str(out.get("code") or ""), str(out.get("reason", ""))[:120])
+            return verdict, reason, model
         except (KeyError, IndexError, ValueError):
             continue
     return "unavailable", "AI check unavailable right now", ""
@@ -907,6 +952,15 @@ def short(row: dict) -> str:
     return f"{row.get('title', '')[:60]} · £{float(row.get('all_in') or 0):.0f}"
 
 
+def price_age(checked_iso: str | None, today) -> tuple[str, bool]:
+    """B5: ('prices checked 11 Nov', is_it_over_14_days_old). Empty text if the category has no date."""
+    try:
+        d = datetime.fromisoformat(str(checked_iso)).date()
+    except ValueError:
+        return "", False
+    return f"prices checked {d.day} {d:%b}", (today - d).days > 14
+
+
 def discord_alert(row: dict, offers: bool = False) -> str | None:
     key = ("OFFER" if offers else "HOT" if row["rating"] == "HOT" else
            "UNCONFIRMED" if row["lane"] == "UNCONFIRMED" else
@@ -921,12 +975,15 @@ def discord_alert(row: dict, offers: bool = False) -> str | None:
                                              f"~£{row.get('safe_profit') or 0:.0f} at an average price · need £{row['required_profit']}"), "inline": True},
         {"name": "👤 Seller", "value": f"{row['seller_feedback']} feedback · {row['seller_pct']}%", "inline": True},
     ]
-    if row.get("notes"):
-        fields.append({"name": "📝 Notes", "value": "\n".join(f"• {n}" for n in row["notes"].split("\n"))[:1000], "inline": False})
+    checked, stale = price_age(CAT_BY_ID.get(row.get("category"), {}).get("prices_checked"), datetime.now(timezone.utc).date())
+    card_notes = (row["notes"].split("\n") if row.get("notes") else []) + (
+        ["⚠️ Resale prices are over 2 weeks old; double-check sold listings."] if stale else [])
+    if card_notes:
+        fields.append({"name": "📝 Notes", "value": "\n".join(f"• {n}" for n in card_notes)[:1000], "inline": False})
     embed = {
         "author": {"name": f"{label} · {row['variant']}"},
         "title": row["title"][:250], "url": row["url"], "color": colour, "fields": fields,
-        "footer": {"text": f"{row['category']} · {row['lane'].lower()} · rating {row['rating'].lower()}"},
+        "footer": {"text": f"{row['category']} · {row['lane'].lower()} · rating {row['rating'].lower()}" + (f" · {checked}" if checked else "")},
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     if row.get("image_url"):
@@ -980,11 +1037,60 @@ def newest_age_min(items: list[dict], now: datetime | None = None) -> float | No
     return round(((now or datetime.now(timezone.utc)) - max(times)).total_seconds() / 60, 1)
 
 
+FULL_SCAN_KEY = "last_full_scan"     # bot_state row holding the time of the last finished full scan (ISO text)
+
+
+def full_due_since(last_iso: str | None, now: datetime, every_min: float) -> bool:
+    """Pure decision: has it been at least every_min minutes since the last full scan? No (or unreadable) record = due."""
+    if not every_min or not last_iso:
+        return True
+    try:
+        last = datetime.fromisoformat(str(last_iso).replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+    return now - last >= timedelta(minutes=every_min)
+
+
+def read_last_full_scan() -> tuple[bool, str | None]:
+    """(readable, timestamp). readable is False when bot_state can't be read, so the caller uses the clock fallback."""
+    base = os.getenv("SUPABASE_URL")
+    if not base or DRY_RUN:
+        return False, None
+    try:
+        r = requests.get(f"{base}/rest/v1/bot_state", headers=sb_headers(), timeout=15,
+                         params={"select": "value", "key": f"eq.{FULL_SCAN_KEY}"})
+        r.raise_for_status()
+        rows = r.json()
+        return True, (rows[0]["value"] if rows else None)
+    except (requests.RequestException, KeyError, ValueError, TypeError, IndexError) as e:
+        print(f"Last full scan read skipped: {e}", file=sys.stderr)
+        return False, None
+
+
+def save_last_full_scan() -> None:
+    """Remember that a full scan has just finished (same upsert style as the eBay token cache)."""
+    base = os.getenv("SUPABASE_URL")
+    if not base or DRY_RUN:
+        return
+    try:
+        requests.post(f"{base}/rest/v1/bot_state", timeout=15,
+                      headers={**sb_headers(), "Prefer": "resolution=merge-duplicates"},
+                      json={"key": FULL_SCAN_KEY, "value": datetime.now(timezone.utc).isoformat()})
+    except requests.RequestException as e:
+        print(f"Last full scan save skipped: {e}", file=sys.stderr)
+
+
 def full_scan_due() -> bool:
-    """Runs every few minutes: 'fast' categories every run, everything else once per full_scan_every_min."""
+    """'Fast' categories run every time; everything else once at least full_scan_every_min minutes after the last
+    full scan (read from Supabase). If that can't be read, fall back to the old clock-minute rule."""
     if os.environ.get("FULL_SCAN") == "1":
         return True
     every = CONFIG.get("full_scan_every_min", 0)
+    readable, last = read_last_full_scan()
+    if readable:
+        return full_due_since(last, datetime.now(timezone.utc), every)
     return not every or datetime.now(timezone.utc).minute % every < CONFIG.get("run_every_min", 3)
 
 
@@ -1163,6 +1269,8 @@ def main() -> int:
     saved = save_new(results)
     if first_run:
         print(f"First run: remembered {len(saved)} existing listings without alerting.")
+        if full:
+            save_last_full_scan()
         post_logs()
         report_usage()
         return 0
@@ -1174,7 +1282,7 @@ def main() -> int:
     # drip-feed: best first, then about one a minute, all done before the next 10-minute scan
     gap = min(CONFIG.get("alert_gap_sec", 55), CONFIG.get("alert_window_sec", 480) / max(1, len(alerts)))
     for i, row in enumerate(alerts):
-        if i:
+        if i and gap > 0:                                 # alert_gap_sec 0 = post them all straight away
             time.sleep(gap)
         try:
             msg_id = discord_alert(row)
@@ -1205,6 +1313,8 @@ def main() -> int:
         LOG.append(f"⚠️ {len(failed)} Discord alert(s) failed, will retry next run")
     if not fresh:
         LOG.append("Nothing new.")
+    if full:
+        save_last_full_scan()                         # B4: the next full scan is due full_scan_every_min after now
     post_logs()
     report_usage()
     return 0

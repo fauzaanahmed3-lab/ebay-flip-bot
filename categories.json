@@ -39,6 +39,7 @@
       "id": "quest3",
       "label": "Meta Quest 3",
       "enabled": true,
+      "prices_checked": "2026-11-04",
       "weekly_sales": 54,
       "queries": [
         "meta quest 3",
@@ -641,6 +642,7 @@
       "id": "ps5",
       "label": "PlayStation 5",
       "enabled": true,
+      "prices_checked": "2026-11-05",
       "weekly_sales": 350,
       "queries": [
         "ps5 console"
@@ -729,6 +731,8 @@
       "id": "xboxsx",
       "label": "Xbox Series X",
       "enabled": true,
+      "prices_checked": "2026-11-10",
+      "new_shop_price": 670,
       "weekly_sales": 320,
       "queries": [
         "xbox series x console"
@@ -882,6 +886,8 @@
       "id": "ps5pro",
       "label": "PS5 Pro (high value)",
       "enabled": true,
+      "prices_checked": "2026-11-11",
+      "new_shop_price": 790,
       "weekly_sales": 56,
       "queries": [
         "ps5 pro console"
@@ -995,7 +1001,7 @@
   "seller_min_pct": 97,
   "trusted_min_feedback": 10,
   "trusted_min_pct": 98,
-  "alert_gap_sec": 55,
+  "alert_gap_sec": 0,
   "alert_window_sec": 90,
   "track_per_run": 5,
   "ai_models": [
@@ -1004,6 +1010,8 @@
     "gemini-2.5-flash-lite"
   ],
   "full_scan_every_min": 12,
+  "business_fee_pct": 0.075,
+  "business_fee_fixed": 0.30,
   "run_every_min": 1,
   "usage_limits": {
     "gemini-3.5-flash-lite": 500,

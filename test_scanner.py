@@ -29,10 +29,10 @@ def check(name, got, want):
     R.append(ok)
 
 check("normalise 'WH-1000 XM 6'", "xm6" in s.norm("Sony WH-1000 XM 6"), True)
-check("steam deck target uses £100 rule", s.buy_target(530, 9), 420)
+check("steam deck target uses £100 rule", s.buy_target(530, 9), 402.7)   # B5: resale is net of eBay buyer fee (was 420)
 check("target never above £500", s.buy_target(985, 6), 500)
 
-r = run("quest3", item("Meta Quest 3 512GB with controllers", 240, fb=250), details())
+r = run("quest3", item("Meta Quest 3 512GB with controllers", 230, fb=250), details())   # B5: was 240 (net resale is lower now)
 check("quest 512 exact + big margin = HOT", (r["lane"], r["verdict"], r["rating"], r["variant"]), ("EXACT", "DEAL", "HOT", "Quest 3 · 512GB"))
 check("quest 3S rejected", run("quest3", item("Meta Quest 3S 128GB", 150), details()), None)
 check("quest 3 standalone not mistaken for 3S", s.triage(CATS["quest3"], item("Meta Quest 3 Standalone VR Headset", 150))["lane"], "EXACT")
@@ -47,22 +47,22 @@ check("vague confirmed as 3S in specifics = rejected", run("quest3", item("Meta 
 check("Bose 'QC Ultra' that is really earbuds (specifics) = rejected",
       run("bose", item("Bose QuietComfort Ultra Noise Cancelling Bluetooth Wireless 1st Gen- Moonstone", 115.10, 4.52, fb=1023, pct=99.3),
           details({"Type": "Earbud (In Ear)", "Model": "Bose QuietComfort Ultra Earbuds"})), None)
-r = run("bose", item("Bose QuietComfort Ultra Headphones (2nd Gen)", 188), details({"Type": "Over-Ear"}))
+r = run("bose", item("Bose QuietComfort Ultra Headphones (2nd Gen)", 175), details({"Type": "Over-Ear"}))
 check("bose gen 2 headphones deal", (r["variant"], r["verdict"]), ("Bose QC Ultra Gen 2", "DEAL"))
 
 check("sony XM4 rejected", run("sony", item("Sony WH-1000XM4 black", 70), details()), None)
 check("sony earbuds rejected", run("sony", item("Sony WF-1000XM5 earbuds", 60), details()), None)
-r = run("sony", item("Sony WH-1000XM6 black", 175, offer=False), details())
+r = run("sony", item("Sony WH-1000XM6 black", 160, offer=False), details())
 check("sony xm6 deal under £183", (r["variant"], r["verdict"]), ("Sony WH-1000XM6", "DEAL"))
-r = run("sony", item("Sony WH-1000XM6", 195, offer=True), details())
-check("sony xm6 offer zone", (r["verdict"], r["suggested_offer"]), ("OFFER", 174))
+r = run("sony", item("Sony WH-1000XM6", 185, offer=True), details())
+check("sony xm6 offer zone", (r["verdict"], r["suggested_offer"]), ("OFFER", 165))   # B5: lower target after buyer fee
 check("sony xm5 too dear for xm5 target", run("sony", item("Sony WH-1000XM5", 95), details()), None)
 
 r = run("steamdeck", item("Valve Steam Deck 512GB handheld", 380), details({"Screen Type": "OLED"}))
 check("vague steam deck confirmed OLED = GEM", (r["lane"], r["variant"]), ("GEM", "Steam Deck OLED 512GB"))
 check("steam deck LCD rejected", run("steamdeck", item("Steam Deck LCD 512GB", 300), details()), None)
-r = run("steamdeck", item("Steam Deck OLED 512GB", 400, 5), details())
-check("steam deck £420 all-in needs £100", (r["required_profit"], r["profit"] >= 100), (100, True))
+r = run("steamdeck", item("Steam Deck OLED 512GB", 382, 5), details())
+check("steam deck £401 all-in needs £100", (r["required_profit"], r["profit"] >= 100), (100, True))
 
 check("wrong eBay category rejected", s.triage(CATS["sony"], item("Sony WH-1000XM6", 150, cat_name="Mobile Phone Cases")), None)
 check("foreign seller rejected", s.triage(CATS["sony"], item("Sony WH-1000XM6", 150, country="CN")), None)
@@ -149,12 +149,12 @@ check4("pink line screen rejected", s.triage(CATS["samsung"], item("Samsung Gala
 check4("Bose earbuds caught by details",
        run("bose", item("Bose QuietComfort Ultra Noise Cancelling Bluetooth Wireless 1st Gen- Moonstone", 119.62, fb=1023),
            details({"Type": "Earbud (In Ear)"})), None)
-check4("'with accessories' is still allowed", s.triage(CATS["supersonic"], item("Dyson Supersonic Hair Dryer Anthracite/Fuchsia With Accessories", 60)) is not None, True)
+check4("'with accessories' is still allowed", s.triage(CATS["supersonic"], item("Dyson Supersonic Hair Dryer Anthracite/Fuchsia With Accessories", 55)) is not None, True)
 check4("over-£500 phone ignored (spending cap)",
        s.triage(CATS["oneplus"], item("OnePlus 15 CPH2747 512GB 16GB RAM OxygenOS White", 625.7, offer=True, fb=2170)), None)
 r = run("oneplus", item("OnePlus 15 512GB OxygenOS White", 530, offer=True, fb=2170), details())
 check4("offer never suggests paying over £500", (r["verdict"], r["suggested_offer"] <= 500), ("OFFER", True))
-r = run("supersonic", item("Dyson Supersonic Hair Dryer Anthracite/Fuchsia With Accessories", 62, fb=929), details())
+r = run("supersonic", item("Dyson Supersonic Hair Dryer Anthracite/Fuchsia With Accessories", 55, fb=929), details())
 check4("thin margin (~£8 at average) is CHECK, not SOLID", r["rating"], "CHECK")
 print(f"third review: {sum(R4)}/{len(R4)} passed")
 
@@ -165,20 +165,20 @@ def check5(name, got, want):
     print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
     R5.append(ok)
 
-r = run("quest3s", item("Meta Quest 3S 128GB with controllers", 135, fb=200), details())
+r = run("quest3s", item("Meta Quest 3S 128GB with controllers", 125, fb=200), details())
 check5("Quest 3S deal found (was rejected before)", (r["variant"], r["verdict"]), ("Quest 3S 128GB", "DEAL"))
 check5("Quest 3 is not mistaken for a 3S", s.triage(CATS["quest3s"], item("Meta Quest 3 128GB", 140)), None)
-r = run("switcholed", item("Nintendo Switch OLED White console with dock and joycons", 115, fb=200), details())
+r = run("switcholed", item("Nintendo Switch OLED White console with dock and joycons", 105, fb=200), details())
 check5("Switch OLED deal found", (r["variant"], r["verdict"]), ("Switch OLED", "DEAL"))
 check5("Switch OLED tablet only rejected", s.triage(CATS["switcholed"], item("Nintendo Switch OLED console only", 90)), None)
 check5("Switch Lite rejected", s.triage(CATS["switcholed"], item("Nintendo Switch Lite OLED screen", 60)), None)
-r = run("switch2", item("Nintendo Switch 2 Console Boxed", 270, fb=200), details())
+r = run("switch2", item("Nintendo Switch 2 Console Boxed", 255, fb=200), details())
 check5("Switch 2 deal found", r["verdict"], "DEAL")
 check5("case for Switch 2 rejected", s.triage(CATS["switch2"], item("Hard case for Nintendo Switch 2", 20)), None)
-r = run("osmo3", item("DJI Osmo Pocket 3 Creator Combo", 250, fb=200), details())
+r = run("osmo3", item("DJI Osmo Pocket 3 Creator Combo", 235, fb=200), details())
 check5("Osmo Pocket 3 Creator Combo priced as combo", r["variant"], "Osmo Pocket 3 Creator Combo")
 check5("filters for Osmo rejected", s.triage(CATS["osmo3"], item("ND filters for DJI Osmo Pocket 3", 25)), None)
-r = run("quest3", item("Meta Quest 3 512GB", 295, offer=True, fb=200), details())
+r = run("quest3", item("Meta Quest 3 512GB", 282, offer=True, fb=200), details())
 check5("12% offer zone catches a listing ~8% over target", r["verdict"], "OFFER")
 print(f"new categories: {sum(R5)}/{len(R5)} passed")
 
@@ -248,7 +248,7 @@ for cat, title, price in [
     ("xboxsx", "Xbox Series X Black Console", 300),
     ("xboxsx", "Microsoft Xbox Series X 1TB Black", 300),
     ("ps5", "Sony PlayStation 5 Slim Disc Console boxed", 330),
-    ("switch2", "Nintendo Switch 2 Console Black w/ Blue/Red Joy-Cons", 270),
+    ("switch2", "Nintendo Switch 2 Console Black w/ Blue/Red Joy-Cons", 255),
     ("xboxss", "Xbox Series S 512GB with controller", 150),
 ]:
     check8(f"kept: {title[:45]}", s.triage(CATS[cat], item(title, price, fb=300)) is not None, True)
@@ -279,7 +279,7 @@ check10("£299 needs £50", s.required_profit(299), 50)
 check10("£300 needs £75", s.required_profit(300), 75)
 check10("£399 needs £75", s.required_profit(399.99), 75)
 check10("£400 needs £100", s.required_profit(400), 100)
-check10("target in £300 band leaves £75", s._buy_target(400, 0) , 324.0)
+check10("target in £300 band leaves £75", s._buy_target(400, 0) , 309.3)   # B5: net of buyer fee (was 324)
 check10("target never lands where profit < rule", all(n - s._buy_target(n, 0) - s.PACK >= s.required_profit(s._buy_target(n, 0)) - 0.01 for n in range(120, 1200, 7)), True)
 check10("per-category cap overrides £500", s.buy_target(1000, 15, 900) > 500, True)
 check10("#deals only gets DEALs (offers go to #send-an-offer)", s.for_deals({"verdict": "OFFER", "category": "quest3", "rating": "SOLID", "safe_profit": 99}), False)
@@ -316,7 +316,7 @@ _calls=[]
 def _post(url, **k):
     _calls.append(url.split("/models/")[1].split(":")[0])
     if "3.5" in url: return _R(429)
-    return _R(200, {"candidates":[{"content":{"parts":[{"text":_json.dumps({"verdict":"no","reason":"Controller only, not a console"})}]}}]})
+    return _R(200, {"candidates":[{"content":{"parts":[{"text":_json.dumps({"verdict":"no","code":"accessory","reason":"Controller only, not a console"})}]}}]})
 _old_post, _old_get = s.requests.post, s.requests.get
 s.requests.post = _post; s.requests.get = lambda url, **k: _R(200, content=b"img")
 _os.environ["GEMINI_API_KEY"]="test"
@@ -402,7 +402,7 @@ def _screen_post(url, **k):
         {"i": 2, "v": "yes", "m": "Made-up model", "r": "real console"}])}]}}]})
 s.requests.post = _screen_post
 s.SOFT.clear()
-s.triage(CATS["ps5"], item("PS5 Slim Disc missing box", 380, 0, fb=200))
+s.triage(CATS["ps5"], item("PS5 Slim Disc missing box", 355, 0, fb=200))
 s.triage(CATS["ps5"], item("PS5 slim controller replacement", 380, 0, fb=200))
 s.triage(CATS["ps5"], item("PlayStation 5 slim damaged box", 380, 0, fb=200))
 got = s.ai_screen(list(s.SOFT))
@@ -443,7 +443,7 @@ def check16(name, got, want):
     print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
     R16.append(ok)
 s.SOFT.clear()
-s.triage(CATS["ps5"], item("PS5 Slim Disc missing box", 380, 0, fb=200))
+s.triage(CATS["ps5"], item("PS5 Slim Disc missing box", 355, 0, fb=200))
 _id = s.SOFT[0][1]["item_id"]
 s.AI_OK[_id] = "PS5 Slim Disc"
 s.requests.post = lambda url, **k: (_ for _ in ()).throw(AssertionError("AI should not be called"))
@@ -459,7 +459,7 @@ def check17(name, got, want):
     print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
     R17.append(ok)
 s.SOFT.clear(); s.SCREENED_IN.clear()
-s.triage(CATS["ps5"], item("PS5 Slim Disc missing box", 380, 0, fb=200))
+s.triage(CATS["ps5"], item("PS5 Slim Disc missing box", 355, 0, fb=200))
 _id = s.SOFT[0][1]["item_id"]
 s.SCREENED_IN[_id] = "xboxsx"                       # was screened out of a different category's search
 _os.environ["GEMINI_API_KEY"] = "test"
@@ -488,8 +488,8 @@ def check18(name, got, want):
 _on = sorted(x["id"] for x in s.CONFIG["categories"] if x.get("enabled"))
 check18("on: PS5 Pro, Quest 3, Xbox Series X, plus standard PS5 for #send-an-offer only", _on, ["ps5", "ps5pro", "quest3", "xboxsx"])
 _xb = CATS["xboxsx"]
-check18("Xbox disc target clears £90 at a typical sale", s.cat_target(_xb, _xb["models"][1]), 378.0)
-r = run("xboxsx", item("Xbox Series X 1TB console with controller", 360, fb=200), details())
+check18("Xbox disc target clears £90 at a typical sale", s.cat_target(_xb, _xb["models"][1]), 361.7)   # B5: was 378
+r = run("xboxsx", item("Xbox Series X 1TB console with controller", 340, fb=200), details())
 check18("Xbox deal needs £90 and clears it", (r["required_profit"], r["safe_profit"] >= 90), (90, True))
 check18("Xbox £1 over target: no offer alert in #deals (goes to #send-an-offer lane)", s.for_deals(run("xboxsx", {**item("Xbox Series X 1TB console with controller", 370, fb=200), "buyingOptions": ["FIXED_PRICE", "BEST_OFFER"]}, details()) or {}), False)
 d = details(); d["description"] = "Selling my Xbox Series X. Console only, no controller included, sorry."
@@ -672,7 +672,7 @@ def check24(name, got, want):
 _xb, _p5 = CATS["xboxsx"], CATS["ps5"]
 _xdisc = _xb["models"][1]
 _ot = s.offer_target(_xb, _xdisc)
-check24("Xbox disc offer target leaves £50 at a typical sale", round(_xdisc["typical"] - _xb["post_out"] - s.PACK - _ot, 2), 50.0)
+check24("Xbox disc offer target leaves £50 at a typical sale", round(s.net_sale(_xdisc["typical"]) - _xb["post_out"] - s.PACK - _ot, 2), 50.0)
 check24("PS5 Pro has no offer lane", s.offer_target(CATS["ps5pro"], CATS["ps5pro"]["models"][0]), None)
 check24("Quest 3 has no offer lane", s.offer_target(CATS["quest3"], CATS["quest3"]["models"][0]), None)
 _bo = lambda it: {**it, "buyingOptions": ["FIXED_PRICE", "BEST_OFFER"]}
@@ -712,3 +712,164 @@ check24("offer card never pings", (_sent24[0][1]["allowed_mentions"], "content" 
 check24("offer card is labelled 'Send an offer'", _sent24[0][1]["embeds"][0]["author"]["name"].startswith("🟡 Send an offer"), True)
 s.requests.post = _keep24[0]; os.environ.clear(); os.environ.update(_keep24[1])
 print(f"#send-an-offer: {sum(R24)}/{len(R24)} passed")
+
+# ---- Phase B (16 Nov) ----
+import json as _pj, os as _pos
+from datetime import datetime as _dt, timedelta as _td, timezone as _tz, date as _date
+
+class _FR:
+    def __init__(self, code, j=None, content=b""): self.status_code=code; self.ok=code==200; self._j=j; self.content=content; self.headers={"Content-Type":"image/jpeg"}
+    def json(self): return self._j
+    def raise_for_status(self): pass
+
+def _mk(n):
+    R_ = []
+    def chk(name, got, want):
+        ok = got == want
+        print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+        R_.append(ok)
+    return R_, chk
+
+# --- 25. B1 alerts are not spaced out ---
+R25, check25 = _mk(25)
+check25("alert gap is 0 seconds", s.CONFIG["alert_gap_sec"], 0)
+check25("drip-feed gap formula gives 0 for any number of alerts",
+        [min(s.CONFIG.get("alert_gap_sec", 55), s.CONFIG.get("alert_window_sec", 480) / max(1, n)) for n in (1, 4, 9)], [0, 0, 0])
+print(f"B1 alert gap: {sum(R25)}/{len(R25)} passed")
+
+# --- 26. B2 the AI may only block for listed reasons ---
+R26, check26 = _mk(26)
+check26("no + listed code stays no", s.apply_ai_rules("no", "accessory", "controller only"), ("no", "controller only"))
+check26("all five listed codes can block", all(s.apply_ai_rules("no", c, "x")[0] == "no" for c in
+        ("accessory", "different_model", "faulty", "missing_essential_part", "not_the_item")), True)
+check26("no + 'other' becomes unsure with a prefix", s.apply_ai_rules("no", "other", "serial looks odd"),
+        ("unsure", "(AI wanted to block for an unlisted reason) serial looks odd"))
+check26("no + missing code becomes unsure", s.apply_ai_rules("no", "", "too cheap")[0], "unsure")
+check26("no + made-up code becomes unsure", s.apply_ai_rules("no", "price_too_low", "cheap")[0], "unsure")
+check26("code is case-insensitive", s.apply_ai_rules("no", "FAULTY", "x")[0], "no")
+check26("yes and unsure are untouched", (s.apply_ai_rules("yes", None, "ok"), s.apply_ai_rules("unsure", "other", "hm")), (("yes", "ok"), ("unsure", "hm")))
+check26("prompt lists the codes and bans price/serial blocks",
+        all(c in s.AI_PROMPT for c in ("accessory", "different_model", "faulty", "missing_essential_part", "not_the_item", "other"))
+        and "price" in s.AI_PROMPT and "serial" in s.AI_PROMPT, True)
+_k26 = (s.requests.post, s.requests.get, dict(_pos.environ))
+_reply26 = {}
+s.requests.get = lambda url, **k: _FR(200, content=b"img")
+s.requests.post = lambda url, **k: _FR(200, {"candidates": [{"content": {"parts": [{"text": _pj.dumps(_reply26)}]}}]})
+_pos.environ["GEMINI_API_KEY"] = "test"
+_row26 = {"title": "PS5 Pro", "price": 100, "all_in": 104, "variant": "PS5 Pro 2TB", "image_url": "http://x/i.jpg"}
+_reply26 = {"verdict": "no", "code": "other", "reason": "serial looks fake"}
+_v = s.ai_check(CATS["ps5pro"], _row26, {})
+check26("ai_check: 'no' for an unlisted reason -> unsure (same 3-part shape)", (_v[0], _v[1].startswith("(AI wanted to block for an unlisted reason)"), len(_v)), ("unsure", True, 3))
+_reply26 = {"verdict": "no", "code": "faulty", "reason": "cracked screen"}
+check26("ai_check: 'no' + faulty still blocks", s.ai_check(CATS["ps5pro"], _row26, {})[:2], ("no", "cracked screen"))
+_reply26 = {"verdict": "yes", "reason": "looks fine"}
+check26("ai_check: old-style reply without a code still works", s.ai_check(CATS["ps5pro"], _row26, {})[:2], ("yes", "looks fine"))
+s.requests.post, s.requests.get = _k26[0], _k26[1]; _pos.environ.clear(); _pos.environ.update(_k26[2])
+print(f"B2 AI reason codes: {sum(R26)}/{len(R26)} passed")
+
+# --- 27. B3 "too cheap to be true" ---
+R27, check27 = _mk(27)
+_pp = CATS["ps5pro"]; _pm = _pp["models"][0]
+check27("ps5pro and xboxsx have a new shop price, quest3 does not",
+        (CATS["ps5pro"].get("new_shop_price"), CATS["xboxsx"].get("new_shop_price"), CATS["quest3"].get("new_shop_price")), (790, 670, None))
+check27("under 75% of typical -> flagged", bool(s.too_cheap_to_be_true(_pp, _pm, 640, "used")), True)
+check27("just above 75% of typical, used -> not flagged", s.too_cheap_to_be_true(_pp, _pm, 660, "used"), None)
+check27("listed new and under the shop price -> flagged", bool(s.too_cheap_to_be_true(_pp, _pm, 700, "new")), True)
+check27("'sealed' also counts as new", bool(s.too_cheap_to_be_true(_pp, _pm, 700, "sealed")), True)
+check27("listed new but at/above the shop price -> not flagged", s.too_cheap_to_be_true(_pp, _pm, 790, "brand new"), None)
+check27("category without new_shop_price skips the new rule", s.too_cheap_to_be_true(CATS["quest3"], CATS["quest3"]["models"][0], 300, "new"), None)
+_it27 = item("Sony PS5 Pro 2TB console with controller", 600, fb=500)
+r = run("ps5pro", {**_it27, "condition": "Used"}, details())
+check27("very cheap PS5 Pro: note added and never HOT",
+        (any(n.startswith("⚠️ Too cheap to be true?") for n in r["notes"].split("\n")), r["rating"] != "HOT", "scam" in r["notes"]), (True, True, True))
+check27("the old 'Unusually cheap' note is gone", "Unusually cheap" in r["notes"], False)
+r = run("ps5pro", {**item("Sony PS5 Pro 2TB console with controller", 680, fb=500), "condition": "New"}, details())
+check27("new at £700 all-in (under £790) -> flagged via the shop-price rule", "Too cheap to be true" in r["notes"], True)
+r = run("ps5pro", {**item("Sony PS5 Pro 2TB console with controller", 680, fb=500), "condition": "Used"}, details())
+check27("same price listed used -> not flagged", "Too cheap to be true" in (r["notes"] or ""), False)
+print(f"B3 too cheap to be true: {sum(R27)}/{len(R27)} passed")
+
+# --- 28. B4 full scans on time ---
+R28, check28 = _mk(28)
+_now = _dt(2026, 11, 16, 12, 0, tzinfo=_tz.utc)
+check28("11 min since last full scan, every 12 -> not due", s.full_due_since((_now - _td(minutes=11)).isoformat(), _now, 12), False)
+check28("12 min since -> due", s.full_due_since((_now - _td(minutes=12)).isoformat(), _now, 12), True)
+check28("40 min since -> due", s.full_due_since((_now - _td(minutes=40)).isoformat(), _now, 12), True)
+check28("no record yet -> due", s.full_due_since(None, _now, 12), True)
+check28("unreadable timestamp -> due", s.full_due_since("garbage", _now, 12), True)
+check28("'Z' timestamps work", s.full_due_since("2026-11-16T11:55:00Z", _now, 12), False)
+_k28 = (s.requests.get, s.requests.post, dict(_pos.environ), s.DRY_RUN)
+_pos.environ.pop("FULL_SCAN", None); _pos.environ["SUPABASE_URL"] = "https://sb"; _pos.environ["SUPABASE_SERVICE_KEY"] = "k"
+s.DRY_RUN = False
+_last = {"v": (_dt.now(_tz.utc) - _td(minutes=5)).isoformat()}
+s.requests.get = lambda url, **k: _FR(200, [{"value": _last["v"]}])
+class _OK(_R):
+    def raise_for_status(self): pass
+s.requests.get = lambda url, **k: _OK(200, [{"value": _last["v"]}])
+check28("reads bot_state: 5 min ago -> not due", s.full_scan_due(), False)
+_last["v"] = (_dt.now(_tz.utc) - _td(minutes=13)).isoformat()
+check28("reads bot_state: 13 min ago -> due", s.full_scan_due(), True)
+_pos.environ["FULL_SCAN"] = "1"; _last["v"] = _dt.now(_tz.utc).isoformat()
+check28("FULL_SCAN=1 still forces a full scan", s.full_scan_due(), True)
+_pos.environ.pop("FULL_SCAN")
+def _boom(url, **k): raise s.requests.RequestException("db down")
+s.requests.get = _boom
+_clock = (not s.CONFIG["full_scan_every_min"]) or _dt.now(_tz.utc).minute % s.CONFIG["full_scan_every_min"] < s.CONFIG.get("run_every_min", 3)
+check28("database error -> falls back to the old clock rule", s.full_scan_due(), _clock)
+s.DRY_RUN = True
+check28("DRY_RUN -> falls back to the old clock rule", s.full_scan_due(), _clock)
+s.DRY_RUN = False
+_sent28 = []
+s.requests.post = lambda url, **k: (_sent28.append((url, k)), _OK(200, {}))[1]
+s.save_last_full_scan()
+check28("finished full scan is saved to bot_state (merge-duplicates)",
+        (_sent28[0][0], _sent28[0][1]["json"]["key"], _sent28[0][1]["headers"]["Prefer"], bool(_dt.fromisoformat(_sent28[0][1]["json"]["value"]))),
+        ("https://sb/rest/v1/bot_state", "last_full_scan", "resolution=merge-duplicates", True))
+s.requests.get, s.requests.post = _k28[0], _k28[1]; _pos.environ.clear(); _pos.environ.update(_k28[2]); s.DRY_RUN = _k28[3]
+print(f"B4 full scan timing: {sum(R28)}/{len(R28)} passed")
+
+# --- 29. B5 honest profit + price dates ---
+R29, check29 = _mk(29)
+check29("net_sale = price minus buyer fee", (s.net_sale(300), s.net_sale(100)), (287.3, 95.3))
+_qm = CATS["quest3"]["models"][0]
+r = run("quest3", item("Meta Quest 3 512GB with controllers", 250, fb=250), details())
+check29("profit uses the net resale price",
+        r["profit"], round(s.net_sale(_qm["strong"]) - CATS["quest3"]["post_out"] - s.PACK - r["all_in"], 2))
+check29("safe profit uses the net typical price",
+        r["safe_profit"], round(s.net_sale(_qm["typical"]) - CATS["quest3"]["post_out"] - s.PACK - r["all_in"], 2))
+check29("buy target is lower than before the fee change (quest 512: was £286)", s.cat_target(CATS["quest3"], _qm) < 286, True)
+check29("target still leaves the required profit", all(s.net_sale(m["strong"]) - CATS["quest3"]["post_out"] - s.PACK - s.cat_target(CATS["quest3"], m) >= s.required_profit(s.cat_target(CATS["quest3"], m)) - 0.01 for m in CATS["quest3"]["models"]), True)
+check29("prices_checked set on every enabled category",
+        {c["id"]: c.get("prices_checked") for c in s.CONFIG["categories"] if c.get("enabled")},
+        {"quest3": "2026-11-04", "ps5": "2026-11-05", "xboxsx": "2026-11-10", "ps5pro": "2026-11-11"})
+check29("price_age: label + fresh", s.price_age("2026-11-11", _date(2026, 11, 16)), ("prices checked 11 Nov", False))
+check29("price_age: exactly 14 days is not stale, 15 is", (s.price_age("2026-11-01", _date(2026, 11, 15))[1], s.price_age("2026-11-01", _date(2026, 11, 16))[1]), (False, True))
+check29("price_age: no date -> nothing", s.price_age(None, _date(2026, 11, 16)), ("", False))
+_sent29 = []
+_k29 = (s.requests.post, dict(_pos.environ))
+s.requests.post = lambda url, **k: (_sent29.append(k["json"]), _P())[1]
+_pos.environ.update(DISCORD_WEBHOOK_URL="https://d/deals")
+_row29 = run("ps5pro", item("Sony PS5 Pro 2TB console with controller", 700, fb=500), details())
+s.discord_alert(_row29)
+_e = _sent29[0]["embeds"][0]
+_d = _dt.now(_tz.utc).date(); _label = f"prices checked 11 Nov"
+check29("card footer shows when prices were checked", _e["footer"]["text"].endswith(" · prices checked 11 Nov"), True)
+_stale = (_d - _date(2026, 11, 11)).days > 14
+check29("old-price warning appears only when over 14 days old",
+        any("over 2 weeks old" in f["value"] for f in _e["fields"] if f["name"].endswith("Notes")), _stale)
+_orig = CATS["ps5pro"]["prices_checked"]; CATS["ps5pro"]["prices_checked"] = "2020-01-01"
+s.discord_alert(_row29)
+check29("a very old price date adds the warning note", any("⚠️ Resale prices are over 2 weeks old; double-check sold listings." in f["value"] for f in _sent29[1]["embeds"][0]["fields"]), True)
+CATS["ps5pro"]["prices_checked"] = _orig
+s.requests.post = _k29[0]; _pos.environ.clear(); _pos.environ.update(_k29[1])
+print(f"B5 net profit + price dates: {sum(R29)}/{len(R29)} passed")
+
+# --- 30. B6 business-seller profit line ---
+R30, check30 = _mk(30)
+check30("business fee settings exist", (s.CONFIG["business_fee_pct"], s.CONFIG["business_fee_fixed"]), (0.075, 0.30))
+r = run("quest3", item("Meta Quest 3 512GB with controllers", 250, fb=250), details())
+_want = round(r["profit"] + (_qm["strong"] - s.net_sale(_qm["strong"])) - (_qm["strong"] * 0.075 + 0.30), 2)   # business: no buyer fee, minus eBay fee
+check30("note shows business profit (approx.)", f"If you sell as a business: about £{_want:.0f} profit (fees approx.)" in r["notes"], True)
+check30("business profit is lower than normal profit", _want < r["profit"], True)
+check30("no new database column: it only lives in the notes", "business_profit" in r, False)
+print(f"B6 business profit line: {sum(R30)}/{len(R30)} passed")
