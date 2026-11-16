@@ -116,6 +116,22 @@ def cat_target(cat: dict, model: dict) -> float:
     return t
 
 
+def offer_target(cat: dict, model: dict) -> float | None:
+    """#send-an-offer lane: highest all-in price that still leaves the lane's minimum profit (e.g. £50) at a
+    TYPICAL resale price. None for categories without the lane."""
+    lane = cat.get("offer_channel")
+    if not lane:
+        return None
+    cap = cat.get("max_buy", CONFIG.get("max_buy", 10**6))
+    return round(min(cap, model.get("typical", model["strong"]) - cat["post_out"] - PACK - lane["min_safe_profit"]), 2)
+
+
+def in_offer_lane(cat: dict, model: dict, all_in: float, best_offer: bool) -> bool:
+    """At or under the lane's target, or a little over it (offer_zone_pct) when the seller accepts offers."""
+    ot = offer_target(cat, model)
+    return bool(ot) and (all_in <= ot or (best_offer and all_in <= ot * (1 + CONFIG["offer_zone_pct"])))
+
+
 def offer_zone(cat: dict) -> float:
     """How far over target we still flag as 'send an offer'. 0 for hot-deals-only categories."""
     return 0 if cat.get("no_offers") else CONFIG["offer_zone_pct"]
@@ -166,7 +182,10 @@ def triage(cat: dict, item: dict) -> dict | None:
     all_in = round(price + ship + fee, 2)
 
     best_target = max(cat_target(cat, m) for m in cat["models"])
-    if all_in > best_target * (1 + offer_zone(cat)):           # stage 2: price gate (maths, final)
+    gate = best_target * (1 + offer_zone(cat))
+    if cat.get("offer_channel"):                                       # the #send-an-offer lane can reach a bit higher
+        gate = max(gate, max(offer_target(cat, m) for m in cat["models"]) * (1 + CONFIG["offer_zone_pct"]))
+    if all_in > gate:                                                  # stage 2: price gate (maths, final)
         return _no(cat["id"], "too pricey")
 
     junk = CONFIG["junk"] + (CONFIG["phone_rules"]["junk"] if cat.get("phone") else [])
@@ -207,7 +226,8 @@ def triage(cat: dict, item: dict) -> dict | None:
     model = model_for(cat, t)                                            # stage 4: lanes
     if model:
         target = cat_target(cat, model)
-        if all_in > target and not (best_offer and all_in <= target * (1 + offer_zone(cat))):
+        if (all_in > target and not (best_offer and all_in <= target * (1 + offer_zone(cat)))
+                and not in_offer_lane(cat, model, all_in, best_offer)):
             return _no(cat["id"], "too pricey")                          # e.g. an XM5 priced like an XM6
         return {**cand, "lane": "EXACT", "model": model["name"]}
     if re.search(cat["family"], t):
@@ -254,7 +274,7 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
 
     target = cat_target(cat, model)
     all_in, ship = cand["all_in"], cand["shipping"]
-    suggested_offer = None
+    suggested_offer, offer_lane = None, False
     if lane == "UNCONFIRMED":
         if all_in > target - CONFIG["unconfirmed_extra_margin"]:
             return None
@@ -265,6 +285,12 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
         verdict = "OFFER"
         fee_rate = 1 if cand.get("fee") else 0
         suggested_offer = int(target - ship - fee_rate * buyer_fee(target - ship))   # offer + postage + fee = target
+    elif lane in ("EXACT", "GEM") and in_offer_lane(cat, model, all_in, cand["best_offer"]):
+        verdict, offer_lane = "OFFER", True                    # not good enough for #deals, fine for #send-an-offer
+        ot = offer_target(cat, model)
+        fee_rate = 1 if cand.get("fee") else 0
+        lane_offer = int(ot - ship - fee_rate * buyer_fee(ot - ship))
+        suggested_offer = lane_offer if lane_offer < cand["price"] else None
     else:
         return None
 
@@ -272,6 +298,8 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
     profit = round(model["strong"] - cat["post_out"] - PACK - pay, 2)
     safe_profit = round(model.get("typical", model["strong"]) - cat["post_out"] - PACK - pay, 2)
     need = max(required_profit(pay), cat.get("min_safe_profit") or 0)
+    if offer_lane:
+        need = cat["offer_channel"]["min_safe_profit"]
 
     # ---- plain-English notes ----
     fb, pct = cand["seller_feedback"], cand["seller_pct"]
@@ -298,7 +326,11 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
         notes.append("Phone: run a free IMEI check (blacklist and network lock) before paying.")
     if details is None:
         notes.append("Details not checked this run (lookup limit reached).")
-    if verdict == "OFFER":
+    if offer_lane and suggested_offer:
+        notes.append(f"Send an offer of £{suggested_offer}: that leaves ~£{need} profit at an average resale price.")
+    elif offer_lane:
+        notes.append(f"Already ~£{need}+ profit at an average price at the asking price; a lower offer is a bonus.")
+    elif verdict == "OFFER":
         notes.append(f"Listed above target. Offer £{suggested_offer}; walk away if they won't go below target.")
 
     # ---- rating ----
@@ -454,6 +486,8 @@ def survival_due(posted_at: datetime, checks_done: int, now: datetime) -> bool:
 def mark_card_gone(msg_id: str | None, posted_at: str | None, now: datetime) -> None:
     """A3: edit the deal's Discord card to show it has gone (grey, '❌ Gone after X min'). Editing never pings anyone."""
     url = os.getenv("DISCORD_WEBHOOK_URL")
+    if msg_id and msg_id.startswith("offers:"):                # card lives in #send-an-offer
+        url, msg_id = os.getenv("DISCORD_OFFERS_WEBHOOK_URL"), msg_id.split(":", 1)[1]
     if not msg_id or not url or DRY_RUN:
         return
     mins = None
@@ -831,9 +865,9 @@ STYLE = {
 }
 
 
-def post_discord(payload: dict, daily: bool = False) -> str | None:
+def post_discord(payload: dict, daily: bool = False, url: str | None = None) -> str | None:
     """Posts to Discord and returns the new message's id (so the card can be found again later)."""
-    url = (os.getenv("DISCORD_DAILY_WEBHOOK_URL") if daily else None) or os.environ["DISCORD_WEBHOOK_URL"]
+    url = url or (os.getenv("DISCORD_DAILY_WEBHOOK_URL") if daily else None) or os.environ["DISCORD_WEBHOOK_URL"]
     r = requests.post(url, params={"wait": "true"}, json=payload, timeout=20)
     if r.status_code == 429:                                  # Discord rate limit: wait and retry once
         time.sleep(float(r.json().get("retry_after", 2)) + 0.5)
@@ -873,8 +907,8 @@ def short(row: dict) -> str:
     return f"{row.get('title', '')[:60]} · £{float(row.get('all_in') or 0):.0f}"
 
 
-def discord_alert(row: dict) -> str | None:
-    key = ("HOT" if row["rating"] == "HOT" else
+def discord_alert(row: dict, offers: bool = False) -> str | None:
+    key = ("OFFER" if offers else "HOT" if row["rating"] == "HOT" else
            "UNCONFIRMED" if row["lane"] == "UNCONFIRMED" else
            "GEM" if row["lane"] == "GEM" else row["verdict"])
     label, colour = STYLE[key]
@@ -897,14 +931,35 @@ def discord_alert(row: dict) -> str | None:
     }
     if row.get("image_url"):
         embed["thumbnail"] = {"url": row["image_url"]}
-    ping = key == "HOT" or (row["verdict"] == "DEAL" and row["rating"] == "SOLID")   # only good deals buzz your phone
+    ping = not offers and (key == "HOT" or (row["verdict"] == "DEAL" and row["rating"] == "SOLID"))   # only good deals buzz your phone
     payload = {"embeds": [embed], "allowed_mentions": {"parse": ["everyone"] if ping else []}}
     if ping:
         payload["content"] = "@everyone 🔥 Hot one, act fast" if key == "HOT" else "@everyone 🟢 Good deal"
-    return post_discord(payload)
+    return post_discord(payload, url=os.environ["DISCORD_OFFERS_WEBHOOK_URL"] if offers else None)
 
 
 # ---------- main ----------
+
+CAT_BY_ID = {c["id"]: c for c in CONFIG["categories"]}
+
+
+def for_offers(row: dict) -> bool:
+    """Goes to #send-an-offer: consoles with the offer lane (standard PS5, Xbox Series X), offers only (and every
+    alert of an offers_only category), and only with at least the lane's minimum profit at an AVERAGE resale price."""
+    cat = CAT_BY_ID.get(row.get("category"), {})
+    lane = cat.get("offer_channel")
+    if not lane or row.get("verdict") not in ("DEAL", "OFFER") or row.get("status") in ("ai_rejected", "gone_before_post"):
+        return False
+    if row["verdict"] == "DEAL" and not cat.get("offers_only"):
+        return False                                          # real deals for these keep going to #deals
+    return float(row.get("safe_profit") or 0) >= lane["min_safe_profit"]
+
+
+def for_deals(row: dict) -> bool:
+    """Goes to #deals (unchanged rules), except categories that only use #send-an-offer."""
+    return (row.get("verdict") == "DEAL" and not quiet(row) and row.get("status") not in ("ai_rejected", "gone_before_post")
+            and not CAT_BY_ID.get(row.get("category"), {}).get("offers_only"))
+
 
 def quiet(row: dict) -> bool:
     """Thin-margin 'check' items are saved (and can appear in the digest) but not posted live."""
@@ -1064,7 +1119,7 @@ def main() -> int:
         row = score(cat, c, details)
         if row and c.get("rescued"):
             row["notes"] = f"🤖 Found by AI: the word filters skipped it ({c['rescued']})" + ("\n" + row["notes"] if row.get("notes") else "")
-        if row and row["verdict"] == "DEAL" and not quiet(row):
+        if row and (for_deals(row) or for_offers(row)):
             row["ai_verdict"], row["ai_reason"], row["ai_model"] = ai_check(cat, row, details)
             if row["ai_verdict"] == "no":
                 row["status"] = "ai_rejected"           # saved for review, never posted
@@ -1075,8 +1130,12 @@ def main() -> int:
             LOG.append(f"❌ {short(c)}: rejected after reading the listing (wrong spec, damage or price)")
         elif row.get("status") == "ai_rejected":
             LOG.append(f"🤖❌ {short(row)}: AI said no ({row.get('ai_reason') or 'no reason'})")
-        elif row["verdict"] == "DEAL" and not quiet(row):
+        elif for_deals(row):
             LOG.append(f"✅ {short(row)}: DEAL, posting · AI {row.get('ai_verdict')} ({row.get('ai_model') or '-'})")
+        elif for_offers(row):
+            LOG.append(f"🟡 {short(row)}: posting to #send-an-offer"
+                       + (f" (offer £{row['suggested_offer']})" if row.get("suggested_offer") else "")
+                       + f" · AI {row.get('ai_verdict')}")
         elif row["verdict"] == "DEAL":
             LOG.append(f"🔇 {short(row)}: deal but thin margin, saved not posted")
         else:
@@ -1108,7 +1167,8 @@ def main() -> int:
         report_usage()
         return 0
     failed = []
-    alerts = [r for r in saved if r["verdict"] == "DEAL" and not quiet(r) and r.get("status") not in ("ai_rejected", "gone_before_post")]
+    alerts = [r for r in saved if for_deals(r)]
+    offers = [r for r in saved if for_offers(r)]
     rank = {"HOT": 0, "SOLID": 1}
     alerts.sort(key=lambda r: (rank.get(r.get("rating"), 2), r["verdict"] != "DEAL", -float(r.get("profit") or 0)))
     # drip-feed: best first, then about one a minute, all done before the next 10-minute scan
@@ -1122,6 +1182,15 @@ def main() -> int:
         except requests.RequestException as e:
             print(f"Discord failed for {row['item_id']}: {e}", file=sys.stderr)
             failed.append(row["item_id"])
+    if offers and not os.getenv("DISCORD_OFFERS_WEBHOOK_URL"):
+        LOG.append(f"🟡 {len(offers)} offer alert(s) not posted: #send-an-offer webhook not set up yet")
+    elif offers:
+        for row in sorted(offers, key=lambda r: -float(r.get("safe_profit") or 0)):
+            try:
+                msg_id = discord_alert(row, offers=True)
+                mark_posted(row["item_id"], f"offers:{msg_id}" if msg_id else None)
+            except requests.RequestException as e:
+                print(f"Offer alert failed for {row['item_id']}: {e}", file=sys.stderr)
     sb_set_status(failed, "retry")                    # picked up again on the next run
     try:
         survival_checks(token)
@@ -1174,6 +1243,7 @@ def daily_digest() -> int:
     now = datetime.now(timezone.utc)
     rows = sb_get({"select": "*", "status": "in.(new,main,extra)", "verdict": "in.(DEAL,OFFER)",
                    "first_seen": f"gte.{(now - timedelta(days=5)).isoformat()}", "order": "profit.desc", "limit": 40})
+    rows = [r for r in rows if not CAT_BY_ID.get(r.get("category"), {}).get("offers_only")]   # those live in #send-an-offer
     rank = {"HOT": 0, "SOLID": 1, "CHECK": 2}
     rows.sort(key=lambda r: (rank.get(r.get("rating"), 3), -(r.get("profit") or 0)))
     live, gone = [], []

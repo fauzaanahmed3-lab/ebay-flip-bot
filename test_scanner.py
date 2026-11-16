@@ -282,7 +282,7 @@ check10("£400 needs £100", s.required_profit(400), 100)
 check10("target in £300 band leaves £75", s._buy_target(400, 0) , 324.0)
 check10("target never lands where profit < rule", all(n - s._buy_target(n, 0) - s.PACK >= s.required_profit(s._buy_target(n, 0)) - 0.01 for n in range(120, 1200, 7)), True)
 check10("per-category cap overrides £500", s.buy_target(1000, 15, 900) > 500, True)
-check10("offers never post live", "r[\"verdict\"] == \"DEAL\"" in open("scanner.py").read(), True)
+check10("#deals only gets DEALs (offers go to #send-an-offer)", s.for_deals({"verdict": "OFFER", "category": "quest3", "rating": "SOLID", "safe_profit": 99}), False)
 print(f"8 Nov tiers: {sum(R10)}/{len(R10)} passed")
 
 # ---- PS5 Pro (8 Nov) ----
@@ -486,12 +486,12 @@ def check18(name, got, want):
     print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
     R18.append(ok)
 _on = sorted(x["id"] for x in s.CONFIG["categories"] if x.get("enabled"))
-check18("only PS5 Pro, Quest 3, Xbox Series X on", _on, ["ps5pro", "quest3", "xboxsx"])
+check18("on: PS5 Pro, Quest 3, Xbox Series X, plus standard PS5 for #send-an-offer only", _on, ["ps5", "ps5pro", "quest3", "xboxsx"])
 _xb = CATS["xboxsx"]
 check18("Xbox disc target clears £90 at a typical sale", s.cat_target(_xb, _xb["models"][1]), 378.0)
 r = run("xboxsx", item("Xbox Series X 1TB console with controller", 360, fb=200), details())
 check18("Xbox deal needs £90 and clears it", (r["required_profit"], r["safe_profit"] >= 90), (90, True))
-check18("Xbox £1 over target is dropped (no offer alerts)", s.triage(_xb, {**item("Xbox Series X 1TB console", 370, fb=200), "buyingOptions": ["FIXED_PRICE", "BEST_OFFER"]}), None)
+check18("Xbox £1 over target: no offer alert in #deals (goes to #send-an-offer lane)", s.for_deals(run("xboxsx", {**item("Xbox Series X 1TB console with controller", 370, fb=200), "buyingOptions": ["FIXED_PRICE", "BEST_OFFER"]}, details()) or {}), False)
 d = details(); d["description"] = "Selling my Xbox Series X. Console only, no controller included, sorry."
 check18("description says no controller -> rejected", run("xboxsx", item("Xbox Series X 1TB console", 330, fb=200), d), None)
 d = details(); d["description"] = "Console only used a few times, comes with controller and leads."
@@ -664,3 +664,51 @@ check23("newest of several listings", s.newest_age_min([{"itemCreationDate": "20
 check23("no listings = nothing to report", s.newest_age_min([], _n23), None)
 check23("missing or broken dates are skipped", s.newest_age_min([{"itemCreationDate": None}, {}, {"itemCreationDate": "2026-11-16T21:58:00Z"}], _n23), 2.0)
 print(f"A4 freshness: {sum(R23)}/{len(R23)} passed")
+
+# --- 24. #send-an-offer channel: standard PS5 + Xbox Series X, £50+ at an average resale (16 Nov 2026) ---
+R24 = []
+def check24(name, got, want):
+    ok = got == want; R24.append(ok); print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"  got {got!r}, want {want!r}"))
+_xb, _p5 = CATS["xboxsx"], CATS["ps5"]
+_xdisc = _xb["models"][1]
+_ot = s.offer_target(_xb, _xdisc)
+check24("Xbox disc offer target leaves £50 at a typical sale", round(_xdisc["typical"] - _xb["post_out"] - s.PACK - _ot, 2), 50.0)
+check24("PS5 Pro has no offer lane", s.offer_target(CATS["ps5pro"], CATS["ps5pro"]["models"][0]), None)
+check24("Quest 3 has no offer lane", s.offer_target(CATS["quest3"], CATS["quest3"]["models"][0]), None)
+_bo = lambda it: {**it, "buyingOptions": ["FIXED_PRICE", "BEST_OFFER"]}
+# Xbox above the hot-deal bar but a bit over the £50 target, seller takes offers -> #send-an-offer with an offer price
+r = run("xboxsx", _bo(item("Xbox Series X 1TB console with controller", _ot + 5, fb=200)), details())
+check24("Xbox over the £50 target + Best Offer -> OFFER with a suggested offer", (r["verdict"], bool(r["suggested_offer"])), ("OFFER", True))
+check24("...goes to #send-an-offer, not #deals", (s.for_offers(r), s.for_deals(r)), (True, False))
+check24("...£50+ at an average price if the offer is accepted", r["safe_profit"] >= 50, True)
+# Xbox over the £50 target, seller does NOT take offers -> dropped
+check24("Xbox over the £50 target without Best Offer is dropped", run("xboxsx", item("Xbox Series X 1TB console with controller", _ot + 5, fb=200), details()), None)
+# Xbox way over (beyond 12%) -> dropped
+check24("Xbox far over the target is dropped", run("xboxsx", _bo(item("Xbox Series X 1TB console with controller", _ot * 1.2, fb=200)), details()), None)
+# Xbox real hot deal still goes to #deals
+r = run("xboxsx", item("Xbox Series X 1TB console with controller", 330, fb=200), details())
+check24("Xbox hot deal still goes to #deals only", (r["verdict"], s.for_deals(r), s.for_offers(r)), ("DEAL", True, False))
+# standard PS5: everything goes to #send-an-offer, nothing to #deals
+_pm = _p5["models"][1]
+r = run("ps5", _bo(item("Sony PS5 Slim Disc console with controller", s.offer_target(_p5, _pm) + 5, fb=200)), details())
+check24("standard PS5 offer -> #send-an-offer", (r and r["verdict"], r and s.for_offers(r), r and s.for_deals(r)), ("OFFER", True, False))
+r = run("ps5", item("Sony PS5 Slim Disc console with controller", 300, fb=200), details())
+check24("standard PS5 cheap deal -> #send-an-offer, never #deals", (r["verdict"], s.for_offers(r), s.for_deals(r)), ("DEAL", True, False))
+check24("offer rows under £50 at an average price are never posted", s.for_offers({"category": "xboxsx", "verdict": "OFFER", "safe_profit": 49}), False)
+check24("AI-blocked offers are never posted", s.for_offers({"category": "xboxsx", "verdict": "OFFER", "safe_profit": 80, "status": "ai_rejected"}), False)
+# posting: no ping, goes to the offers webhook
+_sent24 = []
+class _P:
+    status_code = 200; ok = True
+    def json(self): return {"id": "o1"}
+    def raise_for_status(self): pass
+_keep24 = (s.requests.post, dict(os.environ))
+s.requests.post = lambda url, **k: (_sent24.append((url, k["json"])), _P())[1]
+os.environ.update(DISCORD_WEBHOOK_URL="https://d/deals", DISCORD_OFFERS_WEBHOOK_URL="https://d/offers")
+_row = run("xboxsx", _bo(item("Xbox Series X 1TB console with controller", _ot + 5, fb=200)), details())
+_mid = s.discord_alert(_row, offers=True)
+check24("offer card goes to the #send-an-offer webhook", _sent24[0][0], "https://d/offers")
+check24("offer card never pings", (_sent24[0][1]["allowed_mentions"], "content" in _sent24[0][1]), ({"parse": []}, False))
+check24("offer card is labelled 'Send an offer'", _sent24[0][1]["embeds"][0]["author"]["name"].startswith("🟡 Send an offer"), True)
+s.requests.post = _keep24[0]; os.environ.clear(); os.environ.update(_keep24[1])
+print(f"#send-an-offer: {sum(R24)}/{len(R24)} passed")

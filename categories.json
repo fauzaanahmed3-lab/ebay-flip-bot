@@ -640,11 +640,10 @@
     {
       "id": "ps5",
       "label": "PlayStation 5",
-      "enabled": false,
+      "enabled": true,
       "weekly_sales": 350,
       "queries": [
-        "ps5 console",
-        "playstation 5 console"
+        "ps5 console"
       ],
       "category_hint": [
         "console",
@@ -720,7 +719,11 @@
       ],
       "price_max": 448,
       "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
-      "ai_hint": "Sony PlayStation 5 console, Slim or original, disc or digital (NOT PS5 Pro, not PS4)."
+      "ai_hint": "Sony PlayStation 5 console, Slim or original, disc or digital (NOT PS5 Pro, not PS4).",
+      "offers_only": true,
+      "offer_channel": {
+        "min_safe_profit": 50
+      }
     },
     {
       "id": "xboxsx",
@@ -797,7 +800,10 @@
       "fast_every_min": 2,
       "min_safe_profit": 90,
       "no_offers": true,
-      "needs_controller": true
+      "needs_controller": true,
+      "offer_channel": {
+        "min_safe_profit": 50
+      }
     },
     {
       "id": "xboxss",
