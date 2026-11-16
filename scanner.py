@@ -912,6 +912,19 @@ def quiet(row: dict) -> bool:
     return row.get("rating") == "CHECK" and float(row.get("safe_profit") or 0) < need / 2
 
 
+def newest_age_min(items: list[dict], now: datetime | None = None) -> float | None:
+    """A4: how many minutes old the newest listing in a search is, i.e. roughly eBay's delay in showing new listings."""
+    times = []
+    for it in items:
+        try:
+            times.append(datetime.fromisoformat(str(it.get("itemCreationDate")).replace("Z", "+00:00")))
+        except ValueError:
+            continue
+    if not times:
+        return None
+    return round(((now or datetime.now(timezone.utc)) - max(times)).total_seconds() / 60, 1)
+
+
 def full_scan_due() -> bool:
     """Runs every few minutes: 'fast' categories every run, everything else once per full_scan_every_min."""
     if os.environ.get("FULL_SCAN") == "1":
@@ -987,7 +1000,7 @@ def main() -> int:
     LOG.append(f"**{'Full' if full else 'Fast'} scan** · {datetime.now(timezone.utc).strftime('%H:%M')} UTC")
     cands = []
     for cat in cats:
-        seen_ids = set()
+        seen_ids, ages = set(), []
         for q in (cat["queries"] if full else cat.get("fast_queries", cat["queries"])):   # fast runs can use fewer searches
             try:
                 items = ebay_search(token, cat, q)
@@ -995,6 +1008,9 @@ def main() -> int:
                 print(f"[{cat['id']}] '{q}' failed: {e}", file=sys.stderr)
                 LOG.append(f"⚠️ {cat['id']}: search failed ({e.response.status_code if e.response is not None else 'error'})")
                 continue
+            age = newest_age_min(items)
+            if age is not None:
+                ages.append(age)
             for it in items:
                 if it["itemId"] in seen_ids:
                     continue
@@ -1002,6 +1018,8 @@ def main() -> int:
                 c = triage(cat, it)
                 if c:
                     cands.append((cat, c))
+        if ages:
+            LOG.append(f"🕒 `{cat['id']}` newest listing: {min(ages)} min old")
         passed = sum(1 for x in cands if x[0] is cat)
         print(f"[{cat['id']}] {len(seen_ids)} listings, {passed} past the cheap filters")
         why = sorted(((n, r) for (cid, r), n in WHY.items() if cid == cat["id"]), reverse=True)

@@ -653,3 +653,14 @@ _sent22.clear(); s.mark_card_gone(None, None, _now22)
 check22("alerts from before A1 (no message id) are left alone", _sent22, [])
 s.requests.get, s.requests.patch, s.DRY_RUN = _keep22[:3]; os.environ.clear(); os.environ.update(_keep22[3])
 print(f"A3 gone cards: {sum(R22)}/{len(R22)} passed")
+
+# --- 23. A4: how old is the newest listing in a search (eBay's delay) (16 Nov 2026) ---
+R23 = []
+def check23(name, got, want):
+    ok = got == want; R23.append(ok); print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"  got {got!r}, want {want!r}"))
+_n23 = s.datetime(2026, 11, 16, 22, 0, tzinfo=s.timezone.utc)
+check23("newest of several listings", s.newest_age_min([{"itemCreationDate": "2026-11-16T21:50:00.000Z"},
+                                                        {"itemCreationDate": "2026-11-16T21:56:30.000Z"}], _n23), 3.5)
+check23("no listings = nothing to report", s.newest_age_min([], _n23), None)
+check23("missing or broken dates are skipped", s.newest_age_min([{"itemCreationDate": None}, {}, {"itemCreationDate": "2026-11-16T21:58:00Z"}], _n23), 2.0)
+print(f"A4 freshness: {sum(R23)}/{len(R23)} passed")
