@@ -488,7 +488,7 @@ def check18(name, got, want):
 _on = sorted(x["id"] for x in s.CONFIG["categories"] if x.get("enabled"))
 check18("on: PS5 Pro, Quest 3, Xbox Series X, plus standard PS5 for #send-an-offer only", _on, ["ps5", "ps5pro", "quest3", "xboxsx"])
 _xb = CATS["xboxsx"]
-check18("Xbox disc target clears £90 at a typical sale", s.cat_target(_xb, _xb["models"][1]), 361.7)   # B5: was 378
+check18("Xbox disc target clears £90 at a typical sale", s.cat_target(_xb, _xb["models"][1]), 380.32)   # 18 Nov prices (typical £499); was 361.7
 r = run("xboxsx", item("Xbox Series X 1TB console with controller", 340, fb=200), details())
 check18("Xbox deal needs £90 and clears it", (r["required_profit"], r["safe_profit"] >= 90), (90, True))
 check18("Xbox £1 over target: no offer alert in #deals (goes to #send-an-offer lane)", s.for_deals(run("xboxsx", {**item("Xbox Series X 1TB console with controller", 370, fb=200), "buyingOptions": ["FIXED_PRICE", "BEST_OFFER"]}, details()) or {}), False)
@@ -672,7 +672,7 @@ def check24(name, got, want):
 _xb, _p5 = CATS["xboxsx"], CATS["ps5"]
 _xdisc = _xb["models"][1]
 _ot = s.offer_target(_xb, _xdisc)
-check24("Xbox disc offer target leaves £50 at a typical sale", round(s.net_sale(_xdisc["typical"]) - _xb["post_out"] - s.PACK - _ot, 2), 50.0)
+check24("Xbox disc offer target leaves £30 at a typical sale", round(s.net_sale(_xdisc["typical"]) - _xb["post_out"] - s.PACK - _ot, 2), 30.0)
 check24("PS5 Pro has no offer lane", s.offer_target(CATS["ps5pro"], CATS["ps5pro"]["models"][0]), None)
 check24("Quest 3 has no offer lane", s.offer_target(CATS["quest3"], CATS["quest3"]["models"][0]), None)
 _bo = lambda it: {**it, "buyingOptions": ["FIXED_PRICE", "BEST_OFFER"]}
@@ -680,7 +680,7 @@ _bo = lambda it: {**it, "buyingOptions": ["FIXED_PRICE", "BEST_OFFER"]}
 r = run("xboxsx", _bo(item("Xbox Series X 1TB console with controller", _ot + 5, fb=200)), details())
 check24("Xbox over the £50 target + Best Offer -> OFFER with a suggested offer", (r["verdict"], bool(r["suggested_offer"])), ("OFFER", True))
 check24("...goes to #send-an-offer, not #deals", (s.for_offers(r), s.for_deals(r)), (True, False))
-check24("...£50+ at an average price if the offer is accepted", r["safe_profit"] >= 50, True)
+check24("...£30+ at an average price if the offer is accepted", r["safe_profit"] >= 30, True)
 # Xbox over the £50 target, seller does NOT take offers -> dropped
 check24("Xbox over the £50 target without Best Offer is dropped", run("xboxsx", item("Xbox Series X 1TB console with controller", _ot + 5, fb=200), details()), None)
 # Xbox way over (beyond 12%) -> dropped
@@ -694,7 +694,7 @@ r = run("ps5", _bo(item("Sony PS5 Slim Disc console with controller", s.offer_ta
 check24("standard PS5 offer -> #send-an-offer", (r and r["verdict"], r and s.for_offers(r), r and s.for_deals(r)), ("OFFER", True, False))
 r = run("ps5", item("Sony PS5 Slim Disc console with controller", 300, fb=200), details())
 check24("standard PS5 cheap deal -> #send-an-offer, never #deals", (r["verdict"], s.for_offers(r), s.for_deals(r)), ("DEAL", True, False))
-check24("offer rows under £50 at an average price are never posted", s.for_offers({"category": "xboxsx", "verdict": "OFFER", "safe_profit": 49}), False)
+check24("offer rows under £30 at an average price are never posted", s.for_offers({"category": "xboxsx", "verdict": "OFFER", "safe_profit": 29}), False)
 check24("AI-blocked offers are never posted", s.for_offers({"category": "xboxsx", "verdict": "OFFER", "safe_profit": 80, "status": "ai_rejected"}), False)
 # posting: no ping, goes to the offers webhook
 _sent24 = []
@@ -841,7 +841,7 @@ check29("buy target is lower than before the fee change (quest 512: was £286)",
 check29("target still leaves the required profit", all(s.net_sale(m["strong"]) - CATS["quest3"]["post_out"] - s.PACK - s.cat_target(CATS["quest3"], m) >= s.required_profit(s.cat_target(CATS["quest3"], m)) - 0.01 for m in CATS["quest3"]["models"]), True)
 check29("prices_checked set on every enabled category",
         {c["id"]: c.get("prices_checked") for c in s.CONFIG["categories"] if c.get("enabled")},
-        {"quest3": "2026-11-04", "ps5": "2026-11-05", "xboxsx": "2026-11-10", "ps5pro": "2026-11-11"})
+        {"quest3": "2026-11-04", "ps5": "2026-11-18", "xboxsx": "2026-11-18", "ps5pro": "2026-11-11"})
 check29("price_age: label + fresh", s.price_age("2026-11-11", _date(2026, 11, 16)), ("prices checked 11 Nov", False))
 check29("price_age: exactly 14 days is not stale, 15 is", (s.price_age("2026-11-01", _date(2026, 11, 15))[1], s.price_age("2026-11-01", _date(2026, 11, 16))[1]), (False, True))
 check29("price_age: no date -> nothing", s.price_age(None, _date(2026, 11, 16)), ("", False))

@@ -642,7 +642,7 @@
       "id": "ps5",
       "label": "PlayStation 5",
       "enabled": true,
-      "prices_checked": "2026-11-05",
+      "prices_checked": "2026-11-18",
       "weekly_sales": 350,
       "queries": [
         "ps5 console"
@@ -708,8 +708,8 @@
         {
           "name": "PS5 Digital (original)",
           "match": "digital",
-          "strong": 410,
-          "typical": 394
+          "strong": 450,
+          "typical": 410
         },
         {
           "name": "PS5 Disc (original)",
@@ -719,19 +719,19 @@
           "note": "Title doesn't say slim or digital: confirm the model from the photos."
         }
       ],
-      "price_max": 448,
+      "price_max": 460,
       "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
       "ai_hint": "Sony PlayStation 5 console, Slim or original, disc or digital (NOT PS5 Pro, not PS4).",
       "offers_only": true,
       "offer_channel": {
-        "min_safe_profit": 50
+        "min_safe_profit": 30
       }
     },
     {
       "id": "xboxsx",
       "label": "Xbox Series X",
       "enabled": true,
-      "prices_checked": "2026-11-10",
+      "prices_checked": "2026-11-18",
       "new_shop_price": 670,
       "weekly_sales": 320,
       "queries": [
@@ -793,11 +793,11 @@
         {
           "name": "Series X (disc)",
           "match": "series ?x",
-          "strong": 525,
-          "typical": 480
+          "strong": 545,
+          "typical": 499
         }
       ],
-      "price_max": 463,
+      "price_max": 495,
       "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
       "ai_hint": "Microsoft Xbox Series X console (NOT Series S, Xbox One or 360). Must include at least one controller.",
       "fast": true,
@@ -806,7 +806,7 @@
       "no_offers": true,
       "needs_controller": true,
       "offer_channel": {
-        "min_safe_profit": 50
+        "min_safe_profit": 30
       }
     },
     {
@@ -1011,7 +1011,7 @@
   ],
   "full_scan_every_min": 12,
   "business_fee_pct": 0.075,
-  "business_fee_fixed": 0.30,
+  "business_fee_fixed": 0.3,
   "run_every_min": 1,
   "usage_limits": {
     "gemini-3.5-flash-lite": 500,
