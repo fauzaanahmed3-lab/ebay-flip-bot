@@ -92,7 +92,8 @@
       "fast_queries": [
         "meta quest 3"
       ],
-      "fast_every_min": 2
+      "fast_every_min": 2,
+      "must_have": "\\b(quest|oculus|meta)\\b"
     },
     {
       "id": "steamdeck",
@@ -728,7 +729,8 @@
         "min_safe_profit": 30
       },
       "fast": true,
-      "fast_every_min": 3
+      "fast_every_min": 3,
+      "must_have": "\\b(ps ?5|playstation)\\b"
     },
     {
       "id": "xboxsx",
@@ -810,7 +812,8 @@
       "needs_controller": true,
       "offer_channel": {
         "min_safe_profit": 30
-      }
+      },
+      "must_have": "\\bxbox\\b"
     },
     {
       "id": "xboxss",
@@ -891,7 +894,8 @@
       "fast_every_min": 3,
       "min_safe_profit": 100,
       "no_offers": true,
-      "needs_controller": true
+      "needs_controller": true,
+      "must_have": "\\bxbox\\b"
     },
     {
       "id": "ps5pro",
@@ -965,7 +969,8 @@
       "fast": true,
       "ai_hint": "Sony PlayStation 5 Pro console, 2TB (NOT a regular PS5, not a DualSense Edge or other controller on its own). Must include at least one controller.",
       "needs_controller": true,
-      "prices_note": "Re-checked 11 Nov 2026: plain used sold median ~£870 (shown price incl. buyer fee), top 15% ~£937; new in shops £789.99 when in stock. Max buy £770 so a used one never costs more than new."
+      "prices_note": "Re-checked 11 Nov 2026: plain used sold median ~£870 (shown price incl. buyer fee), top 15% ~£937; new in shops £789.99 when in stock. Max buy £770 so a used one never costs more than new.",
+      "must_have": "\\b(ps ?5|playstation)\\b"
     }
   ],
   "phone_rules": {
