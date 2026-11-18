@@ -27,6 +27,7 @@ jobs:
       DISCORD_LOG_WEBHOOK_URL: ${{ secrets.DISCORD_LOG_WEBHOOK_URL }}
       DISCORD_USAGE_WEBHOOK_URL: ${{ secrets.DISCORD_USAGE_WEBHOOK_URL }}
       DISCORD_OFFERS_WEBHOOK_URL: ${{ secrets.DISCORD_OFFERS_WEBHOOK_URL }}
+      DISCORD_AIBLOCKED_WEBHOOK_URL: ${{ secrets.DISCORD_AIBLOCKED_WEBHOOK_URL }}
       MODE: ${{ inputs.mode || 'scan' }}
       HAS_KEYS: ${{ secrets.EBAY_CLIENT_ID != '' }}
     steps:

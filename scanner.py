@@ -961,6 +961,41 @@ def price_age(checked_iso: str | None, today) -> tuple[str, bool]:
     return f"prices checked {d.day} {d:%b}", (today - d).days > 14
 
 
+def post_ai_blocked(rows: list[dict]) -> None:
+    """B2 part 2: show every deal the AI photo/text check blocked in the private #ai-blocked channel,
+    so a good deal blocked by mistake can still be spotted. Silent (no pings). Needs DISCORD_AIBLOCKED_WEBHOOK_URL."""
+    url = os.getenv("DISCORD_AIBLOCKED_WEBHOOK_URL")
+    if not url or DRY_RUN or not rows:
+        return
+    for row in rows:
+        payload = {"allowed_mentions": {"parse": []}, "flags": 4096, "embeds": [{
+            "title": f"🚫 AI blocked: {str(row.get('title', ''))[:230]}", "url": row.get("url"), "color": 0x808080,
+            "description": (f"**Why:** {row.get('ai_reason') or 'no reason given'}\n"
+                            f"£{float(row.get('all_in') or 0):.2f} all-in · {row.get('verdict')} · "
+                            f"~£{float(row.get('safe_profit') or 0):.0f} at an average price"),
+            "footer": {"text": f"{row.get('category')} · {row.get('ai_model') or 'AI'}"}}]}
+        if row.get("image_url"):
+            payload["embeds"][0]["thumbnail"] = {"url": row["image_url"]}
+        try:
+            requests.post(url, json=payload, timeout=15)
+            time.sleep(0.6)
+        except requests.RequestException as e:
+            print(f"AI-blocked post skipped: {e}", file=sys.stderr)
+
+
+def mark_run_finished() -> None:
+    """A6: record when a scan last finished, so the database's heartbeat check can warn if the bot stops."""
+    base = os.getenv("SUPABASE_URL")
+    if not base or DRY_RUN:
+        return
+    try:
+        requests.post(f"{base}/rest/v1/bot_state", timeout=15,
+                      headers={**sb_headers(), "Prefer": "resolution=merge-duplicates"},
+                      json={"key": "last_run", "value": datetime.now(timezone.utc).isoformat()})
+    except requests.RequestException as e:
+        print(f"Heartbeat save skipped: {e}", file=sys.stderr)
+
+
 def discord_alert(row: dict, offers: bool = False) -> str | None:
     key = ("OFFER" if offers else "HOT" if row["rating"] == "HOT" else
            "UNCONFIRMED" if row["lane"] == "UNCONFIRMED" else
@@ -1271,6 +1306,7 @@ def main() -> int:
         print(f"First run: remembered {len(saved)} existing listings without alerting.")
         if full:
             save_last_full_scan()
+        mark_run_finished()
         post_logs()
         report_usage()
         return 0
@@ -1315,6 +1351,8 @@ def main() -> int:
         LOG.append("Nothing new.")
     if full:
         save_last_full_scan()                         # B4: the next full scan is due full_scan_every_min after now
+    post_ai_blocked([r for r in saved if r.get("status") == "ai_rejected"])
+    mark_run_finished()
     post_logs()
     report_usage()
     return 0

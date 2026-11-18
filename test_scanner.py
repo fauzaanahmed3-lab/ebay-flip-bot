@@ -875,3 +875,27 @@ check30("note shows business profit (approx.)", f"If you sell as a business: abo
 check30("business profit is lower than normal profit", _want < r["profit"], True)
 check30("no new database column: it only lives in the notes", "business_profit" in r, False)
 print(f"B6 business profit line: {sum(R30)}/{len(R30)} passed")
+
+# --- 31. #ai-blocked channel + heartbeat timestamp (18 Nov 2026) ---
+R31 = []
+def check31(name, got, want):
+    ok = got == want; R31.append(ok); print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"  got {got!r}, want {want!r}"))
+_sent31 = []
+_k31 = (s.requests.post, s.DRY_RUN, dict(os.environ), s.time.sleep)
+s.requests.post = lambda url, **k: _sent31.append((url, k.get("json")))
+s.time.sleep = lambda x: None
+s.DRY_RUN = False
+os.environ.pop("DISCORD_AIBLOCKED_WEBHOOK_URL", None)
+s.post_ai_blocked([{"title": "PS5", "all_in": 300, "verdict": "DEAL", "status": "ai_rejected"}])
+check31("no webhook set: nothing is sent", _sent31, [])
+os.environ.update(DISCORD_AIBLOCKED_WEBHOOK_URL="https://d/blocked", SUPABASE_URL="https://x.supabase.co", SUPABASE_SERVICE_KEY="k")
+s.post_ai_blocked([{"title": "Xbox Series X", "all_in": 320, "verdict": "DEAL", "ai_reason": "faulty", "safe_profit": 90, "category": "xboxsx"}])
+_u, _j = _sent31[0]
+check31("blocked deal goes to the #ai-blocked webhook", _u, "https://d/blocked")
+check31("blocked card never pings and is silent", (_j["allowed_mentions"], _j["flags"]), ({"parse": []}, 4096))
+check31("blocked card shows the AI's reason", "**Why:** faulty" in _j["embeds"][0]["description"], True)
+_sent31.clear(); s.mark_run_finished()
+check31("each run saves last_run to bot_state", (_sent31[0][0].endswith("/rest/v1/bot_state"), _sent31[0][1]["key"]), (True, "last_run"))
+s.requests.post, s.DRY_RUN, _e, s.time.sleep = _k31[0], _k31[1], None, _k31[3]
+os.environ.clear(); os.environ.update(_k31[2])
+print(f"#ai-blocked + heartbeat: {sum(R31)}/{len(R31)} passed")
