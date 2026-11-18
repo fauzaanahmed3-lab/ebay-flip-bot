@@ -91,7 +91,8 @@
       "fast": true,
       "fast_queries": [
         "meta quest 3"
-      ]
+      ],
+      "fast_every_min": 2
     },
     {
       "id": "steamdeck",
@@ -725,7 +726,9 @@
       "offers_only": true,
       "offer_channel": {
         "min_safe_profit": 30
-      }
+      },
+      "fast": true,
+      "fast_every_min": 3
     },
     {
       "id": "xboxsx",

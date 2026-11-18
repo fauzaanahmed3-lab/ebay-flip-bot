@@ -506,9 +506,11 @@ class _FakeDT(_dt.datetime):
 _old_dt = s.datetime; s.datetime = _FakeDT
 _picked = lambda: [c["id"] for c in s.CONFIG["categories"] if c.get("enabled") and c["models"] and c.get("fast")
                    and _FakeDT.now().minute % c.get("fast_every_min", 1) == 0]
-_FakeDT.m = 1; odd = _picked(); _FakeDT.m = 2; even = _picked()
+_FakeDT.m = 1; m1 = _picked(); _FakeDT.m = 2; m2 = _picked(); _FakeDT.m = 3; m3 = _picked(); _FakeDT.m = 6; m6 = _picked()
 s.datetime = _old_dt
-check18("Xbox every 2 minutes, others every minute", (sorted(odd), sorted(even)), (["ps5pro", "quest3"], ["ps5pro", "quest3", "xboxsx"]))
+check18("18 Nov speeds: PS5 Pro every minute, Xbox + Quest 3 every 2, PS5 every 3",
+        (sorted(m1), sorted(m2), sorted(m3), sorted(m6)),
+        (["ps5pro"], ["ps5pro", "quest3", "xboxsx"], ["ps5", "ps5pro"], ["ps5", "ps5pro", "quest3", "xboxsx"]))
 print(f"3 categories + Xbox rules: {sum(R18)}/{len(R18)} passed")
 
 # --- 19. eBay token is reused for ~2 hours instead of fetched every run (12 Nov 2026) ---
