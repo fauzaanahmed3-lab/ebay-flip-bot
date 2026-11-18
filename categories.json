@@ -815,8 +815,8 @@
     {
       "id": "xboxss",
       "label": "Xbox Series S",
-      "enabled": false,
-      "weekly_sales": 450,
+      "enabled": true,
+      "weekly_sales": 525,
       "queries": [
         "xbox series s console"
       ],
@@ -861,7 +861,9 @@
         "\\bcamera\\b",
         "face ?plates?",
         "\\bgame only\\b",
-        "\\bcodes?\\b"
+        "\\bcodes?\\b",
+        "controller not included",
+        "no pad"
       ],
       "wrong_specs": [
         "series ?x\\b"
@@ -870,20 +872,26 @@
         {
           "name": "Series S · 1TB",
           "match": "1 ?tb",
-          "strong": 265,
-          "typical": 255,
-          "note": "Priced like the 512GB to be safe; the 1TB usually sells a bit higher."
+          "strong": 380,
+          "typical": 333
         },
         {
           "name": "Series S · 512GB or not stated",
           "match": "series ?s\\b",
-          "strong": 265,
-          "typical": 255
+          "strong": 320,
+          "typical": 290
         }
       ],
-      "price_max": 229,
+      "price_max": 215,
       "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
-      "ai_hint": "Microsoft Xbox Series S console (NOT Series X, Xbox One or 360)."
+      "ai_hint": "Microsoft Xbox Series S console (NOT Series X, Xbox One or 360). Must include at least one controller.",
+      "prices_checked": "2026-11-18",
+      "new_shop_price": 430,
+      "fast": true,
+      "fast_every_min": 3,
+      "min_safe_profit": 100,
+      "no_offers": true,
+      "needs_controller": true
     },
     {
       "id": "ps5pro",

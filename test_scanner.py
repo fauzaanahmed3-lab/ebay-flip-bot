@@ -486,7 +486,7 @@ def check18(name, got, want):
     print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
     R18.append(ok)
 _on = sorted(x["id"] for x in s.CONFIG["categories"] if x.get("enabled"))
-check18("on: PS5 Pro, Quest 3, Xbox Series X, plus standard PS5 for #send-an-offer only", _on, ["ps5", "ps5pro", "quest3", "xboxsx"])
+check18("on: PS5 Pro, Quest 3, Xbox Series X + S, plus standard PS5 for #send-an-offer only", _on, ["ps5", "ps5pro", "quest3", "xboxss", "xboxsx"])
 _xb = CATS["xboxsx"]
 check18("Xbox disc target clears £90 at a typical sale", s.cat_target(_xb, _xb["models"][1]), 380.32)   # 18 Nov prices (typical £499); was 361.7
 r = run("xboxsx", item("Xbox Series X 1TB console with controller", 340, fb=200), details())
@@ -508,9 +508,9 @@ _picked = lambda: [c["id"] for c in s.CONFIG["categories"] if c.get("enabled") a
                    and _FakeDT.now().minute % c.get("fast_every_min", 1) == 0]
 _FakeDT.m = 1; m1 = _picked(); _FakeDT.m = 2; m2 = _picked(); _FakeDT.m = 3; m3 = _picked(); _FakeDT.m = 6; m6 = _picked()
 s.datetime = _old_dt
-check18("18 Nov speeds: PS5 Pro every minute, Xbox + Quest 3 every 2, PS5 every 3",
+check18("18 Nov speeds: PS5 Pro every minute, Xbox X + Quest 3 every 2, PS5 + Xbox S every 3",
         (sorted(m1), sorted(m2), sorted(m3), sorted(m6)),
-        (["ps5pro"], ["ps5pro", "quest3", "xboxsx"], ["ps5", "ps5pro"], ["ps5", "ps5pro", "quest3", "xboxsx"]))
+        (["ps5pro"], ["ps5pro", "quest3", "xboxsx"], ["ps5", "ps5pro", "xboxss"], ["ps5", "ps5pro", "quest3", "xboxss", "xboxsx"]))
 print(f"3 categories + Xbox rules: {sum(R18)}/{len(R18)} passed")
 
 # --- 19. eBay token is reused for ~2 hours instead of fetched every run (12 Nov 2026) ---
@@ -843,7 +843,7 @@ check29("buy target is lower than before the fee change (quest 512: was £286)",
 check29("target still leaves the required profit", all(s.net_sale(m["strong"]) - CATS["quest3"]["post_out"] - s.PACK - s.cat_target(CATS["quest3"], m) >= s.required_profit(s.cat_target(CATS["quest3"], m)) - 0.01 for m in CATS["quest3"]["models"]), True)
 check29("prices_checked set on every enabled category",
         {c["id"]: c.get("prices_checked") for c in s.CONFIG["categories"] if c.get("enabled")},
-        {"quest3": "2026-11-04", "ps5": "2026-11-18", "xboxsx": "2026-11-18", "ps5pro": "2026-11-11"})
+        {"quest3": "2026-11-04", "ps5": "2026-11-18", "xboxsx": "2026-11-18", "xboxss": "2026-11-18", "ps5pro": "2026-11-11"})
 check29("price_age: label + fresh", s.price_age("2026-11-11", _date(2026, 11, 16)), ("prices checked 11 Nov", False))
 check29("price_age: exactly 14 days is not stale, 15 is", (s.price_age("2026-11-01", _date(2026, 11, 15))[1], s.price_age("2026-11-01", _date(2026, 11, 16))[1]), (False, True))
 check29("price_age: no date -> nothing", s.price_age(None, _date(2026, 11, 16)), ("", False))
@@ -899,3 +899,26 @@ check31("each run saves last_run to bot_state", (_sent31[0][0].endswith("/rest/v
 s.requests.post, s.DRY_RUN, _e, s.time.sleep = _k31[0], _k31[1], None, _k31[3]
 os.environ.clear(); os.environ.update(_k31[2])
 print(f"#ai-blocked + heartbeat: {sum(R31)}/{len(R31)} passed")
+
+# --- 32. Xbox Series S: big deals only, £100+ profit at a typical sale (18 Nov 2026) ---
+R32 = []
+def check32(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R32.append(ok)
+_ss = CATS["xboxss"]
+_m1, _m5 = _ss["models"]
+check32("Series S is hot-deals only: no offers lane, no offer zone", (_ss.get("offer_channel"), s.offer_zone(_ss)), (None, 0))
+check32("Series S needs a controller", _ss.get("needs_controller"), True)
+for _m in (_m1, _m5):
+    check32(f"{_m['name']}: target leaves £100+ at a typical sale",
+            round(s.net_sale(_m["typical"]) - _ss["post_out"] - s.PACK - s.cat_target(_ss, _m), 2) >= 100, True)
+check32("512GB target is about £167", s.cat_target(_ss, _m5), 166.7)
+check32("1TB target is about £209", s.cat_target(_ss, _m1), 208.64)
+check32("search window covers the highest target", _ss["price_max"] >= s.cat_target(_ss, _m1), True)
+_c = run("xboxss", item("Xbox Series S 512GB console with controller", 150, ship=5))
+check32("cheap 512GB with controller is a DEAL", bool(_c) and _c["verdict"], "DEAL")
+_c = run("xboxss", item("Xbox Series S 512GB console with controller", 200, ship=5))
+check32("£205 512GB (only ~£60 profit) is not posted", bool(_c) and _c["verdict"] == "DEAL", False)
+check32("Series X listing is not matched as Series S", bool(run("xboxss", item("Xbox Series X console with controller", 150))) and True, False)
+print(f"Xbox Series S: {sum(R32)}/{len(R32)} passed")
