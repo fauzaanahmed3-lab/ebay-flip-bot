@@ -92,13 +92,13 @@
       "fast_queries": [
         "meta quest 3"
       ],
-      "fast_every_min": 2,
+      "fast_every_min": 1,
       "must_have": "\\b(quest|oculus|meta)\\b"
     },
     {
       "id": "steamdeck",
       "label": "Steam Deck OLED",
-      "enabled": false,
+      "enabled": true,
       "weekly_sales": 36,
       "queries": [
         "steam deck oled",
@@ -136,7 +136,9 @@
       "wrong_specs": [
         "\\blcd\\b"
       ],
-      "ai_hint": "Valve Steam Deck OLED handheld, 512GB or 1TB (NOT the LCD model, not 64/256GB)."
+      "ai_hint": "Valve Steam Deck OLED handheld, 512GB or 1TB (NOT the LCD model, not 64/256GB).",
+      "must_have": "\\bsteam ?deck\\b",
+      "prices_checked": "2026-11-05"
     },
     {
       "id": "sony",
@@ -543,7 +545,7 @@
     {
       "id": "switch2",
       "label": "Nintendo Switch 2",
-      "enabled": false,
+      "enabled": true,
       "weekly_sales": 214,
       "queries": [
         "nintendo switch 2 console"
@@ -594,7 +596,9 @@
       ],
       "price_max": 321,
       "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
-      "ai_hint": "Nintendo Switch 2 console (NOT Switch OLED, Lite or the original Switch)."
+      "ai_hint": "Nintendo Switch 2 console (NOT Switch OLED, Lite or the original Switch).",
+      "must_have": "\\bswitch\\b",
+      "prices_checked": "2026-11-05"
     },
     {
       "id": "osmo3",
@@ -1047,5 +1051,24 @@
     "replacement"
   ],
   "ai_screen_max": 120,
-  "ai_screen_batch": 30
+  "ai_screen_batch": 30,
+  "sweeps": [
+    {
+      "id": "consoles",
+      "label": "Video Game Consoles",
+      "category_ids": "139971",
+      "cats": [
+        "ps5pro",
+        "ps5",
+        "xboxsx",
+        "xboxss",
+        "switch2",
+        "steamdeck"
+      ],
+      "price_min": 110,
+      "price_max": 912,
+      "every_min": 1,
+      "limit": 200
+    }
+  ]
 }

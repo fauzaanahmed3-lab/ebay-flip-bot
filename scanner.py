@@ -464,12 +464,18 @@ def ebay_headers(token):
     return {"Authorization": f"Bearer {token}", "X-EBAY-C-MARKETPLACE-ID": "EBAY_GB"}
 
 
-def ebay_search(token: str, cat: dict, query: str) -> list[dict]:
+def ebay_search(token: str, cat: dict, query: str | None, category_ids: str | None = None,
+                limit: int = 50) -> list[dict]:
     filters = ",".join(["buyingOptions:{FIXED_PRICE}", "conditions:{NEW|USED}", "itemLocationCountry:GB",
                         f"price:[{cat['price_min']}..{cat['price_max']}]", "priceCurrency:GBP"])
+    params = {"filter": filters, "sort": "newlyListed", "limit": limit}
+    if query:
+        params["q"] = query
+    if category_ids:
+        params["category_ids"] = category_ids              # sweep: a whole eBay category, no keyword
     USAGE["ebay"] += 1
     r = requests.get(f"{EBAY_API}/buy/browse/v1/item_summary/search", headers=ebay_headers(token),
-                     params={"q": query, "filter": filters, "sort": "newlyListed", "limit": 50}, timeout=20)
+                     params=params, timeout=20)
     if r.status_code == 401:
         forget_ebay_token()                                   # cached token rejected: next run gets a new one
     r.raise_for_status()
@@ -1189,24 +1195,53 @@ def screen_soft(old: dict, cand_ids: set, fresh: list) -> list[dict]:
     return rejects
 
 
+def run_sweeps(token: str, full: bool, minute: int) -> dict[str, list[dict]]:
+    """Category sweeps: one newest-first search over a whole eBay category (no keyword, up to 200 results)
+    covers every product in it, so many products cost one eBay call. Returns {category id: items}."""
+    out: dict[str, list[dict]] = {}
+    enabled = {c["id"] for c in CONFIG["categories"] if c.get("enabled") and c["models"]}
+    for s in CONFIG.get("sweeps", []):
+        members = [cid for cid in s["cats"] if cid in enabled]
+        if not members or not (full or minute % s.get("every_min", 1) == 0):
+            continue
+        try:
+            items = ebay_search(token, s, None, category_ids=s["category_ids"], limit=s.get("limit", 200))
+        except requests.HTTPError as e:
+            print(f"[sweep {s['id']}] failed: {e}", file=sys.stderr)
+            LOG.append(f"⚠️ sweep {s['id']} failed ({e.response.status_code if e.response is not None else 'error'}): "
+                       "falling back to keyword searches")
+            continue                                   # members fall back to their own keyword searches
+        age = newest_age_min(items)
+        LOG.append(f"🧹 sweep `{s['id']}`: {len(items)} listings for {', '.join(members)}"
+                   + (f" · newest {age} min old" if age is not None else ""))
+        for cid in members:
+            out[cid] = items
+    return out
+
+
 def main() -> int:
     token = ebay_token()
     full = full_scan_due()
     minute = datetime.now(timezone.utc).minute
+    swept = run_sweeps(token, full, minute)          # one search per eBay category, shared by many products
     cats = [c for c in CONFIG["categories"] if c.get("enabled") and c["models"]
-            and (full or (c.get("fast") and minute % c.get("fast_every_min", 1) == 0))]
+            and (full or c["id"] in swept or (c.get("fast") and minute % c.get("fast_every_min", 1) == 0))]
     print("Full scan" if full else "Fast scan: " + ", ".join(c["id"] for c in cats))
-    LOG.append(f"**{'Full' if full else 'Fast'} scan** · {datetime.now(timezone.utc).strftime('%H:%M')} UTC")
+    LOG.insert(0, f"**{'Full' if full else 'Fast'} scan** · {datetime.now(timezone.utc).strftime('%H:%M')} UTC")
     cands = []
     for cat in cats:
         seen_ids, ages = set(), []
-        for q in (cat["queries"] if full else cat.get("fast_queries", cat["queries"])):   # fast runs can use fewer searches
-            try:
-                items = ebay_search(token, cat, q)
-            except requests.HTTPError as e:
-                print(f"[{cat['id']}] '{q}' failed: {e}", file=sys.stderr)
-                LOG.append(f"⚠️ {cat['id']}: search failed ({e.response.status_code if e.response is not None else 'error'})")
-                continue
+        sources = [(None, swept[cat["id"]])] if cat["id"] in swept else []
+        if full or cat["id"] not in swept:            # keyword searches: full scans (safety net) or unswept products
+            sources += [(q, None) for q in (cat["queries"] if full else cat.get("fast_queries", cat["queries"]))]
+        for q, items in sources:
+            if items is None:
+                try:
+                    items = ebay_search(token, cat, q)
+                except requests.HTTPError as e:
+                    print(f"[{cat['id']}] '{q}' failed: {e}", file=sys.stderr)
+                    LOG.append(f"⚠️ {cat['id']}: search failed ({e.response.status_code if e.response is not None else 'error'})")
+                    continue
             age = newest_age_min(items)
             if age is not None:
                 ages.append(age)

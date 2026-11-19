@@ -486,7 +486,7 @@ def check18(name, got, want):
     print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
     R18.append(ok)
 _on = sorted(x["id"] for x in s.CONFIG["categories"] if x.get("enabled"))
-check18("on: PS5 Pro, Quest 3, Xbox Series X + S, plus standard PS5 for #send-an-offer only", _on, ["ps5", "ps5pro", "quest3", "xboxss", "xboxsx"])
+check18("on: PS5 Pro, Quest 3, Xbox Series X + S, standard PS5 (offers), Switch 2 + Steam Deck (19 Nov, via the console sweep)", _on, ["ps5", "ps5pro", "quest3", "steamdeck", "switch2", "xboxss", "xboxsx"])
 _xb = CATS["xboxsx"]
 check18("Xbox disc target clears £90 at a typical sale", s.cat_target(_xb, _xb["models"][1]), 380.32)   # 18 Nov prices (typical £499); was 361.7
 r = run("xboxsx", item("Xbox Series X 1TB console with controller", 340, fb=200), details())
@@ -508,9 +508,9 @@ _picked = lambda: [c["id"] for c in s.CONFIG["categories"] if c.get("enabled") a
                    and _FakeDT.now().minute % c.get("fast_every_min", 1) == 0]
 _FakeDT.m = 1; m1 = _picked(); _FakeDT.m = 2; m2 = _picked(); _FakeDT.m = 3; m3 = _picked(); _FakeDT.m = 6; m6 = _picked()
 s.datetime = _old_dt
-check18("18 Nov speeds: PS5 Pro every minute, Xbox X + Quest 3 every 2, PS5 + Xbox S every 3",
+check18("19 Nov keyword speeds: Quest 3 every minute (consoles now come from the every-minute sweep instead)",
         (sorted(m1), sorted(m2), sorted(m3), sorted(m6)),
-        (["ps5pro"], ["ps5pro", "quest3", "xboxsx"], ["ps5", "ps5pro", "xboxss"], ["ps5", "ps5pro", "quest3", "xboxss", "xboxsx"]))
+        (["ps5pro", "quest3"], ["ps5pro", "quest3", "xboxsx"], ["ps5", "ps5pro", "quest3", "xboxss"], ["ps5", "ps5pro", "quest3", "xboxss", "xboxsx"]))
 print(f"3 categories + Xbox rules: {sum(R18)}/{len(R18)} passed")
 
 # --- 19. eBay token is reused for ~2 hours instead of fetched every run (12 Nov 2026) ---
@@ -618,7 +618,7 @@ _keep21 = {n: getattr(s, n) for n in ("ebay_token", "ebay_search", "already_seen
 _get21 = s.requests.get
 s.ebay_token = lambda: "tok"; s.full_scan_due = lambda: False; s.already_seen = lambda ids: {}
 s.screen_soft = lambda old, ids, fresh: []; s.ai_check = lambda cat, row, d: ("yes", "ok", "fake")
-s.ebay_search = lambda tok, cat, q: [_it("v|sold|0", 700), _it("v|404|0", 705), _it("v|live|0", 710)] if cat["id"] == "ps5pro" else []
+s.ebay_search = lambda tok, cat, q, **kw: [_it("v|sold|0", 700), _it("v|404|0", 705), _it("v|live|0", 710)] if cat["id"] in ("ps5pro", "consoles") else []
 s.requests.get = _iget; s.DRY_RUN = True; s.LOG.clear(); s.GONE.clear()
 import io, contextlib
 with contextlib.redirect_stdout(io.StringIO()):
@@ -843,7 +843,7 @@ check29("buy target is lower than before the fee change (quest 512: was £286)",
 check29("target still leaves the required profit", all(s.net_sale(m["strong"]) - CATS["quest3"]["post_out"] - s.PACK - s.cat_target(CATS["quest3"], m) >= s.required_profit(s.cat_target(CATS["quest3"], m)) - 0.01 for m in CATS["quest3"]["models"]), True)
 check29("prices_checked set on every enabled category",
         {c["id"]: c.get("prices_checked") for c in s.CONFIG["categories"] if c.get("enabled")},
-        {"quest3": "2026-11-04", "ps5": "2026-11-18", "xboxsx": "2026-11-18", "xboxss": "2026-11-18", "ps5pro": "2026-11-11"})
+        {"quest3": "2026-11-04", "steamdeck": "2026-11-05", "switch2": "2026-11-05", "ps5": "2026-11-18", "xboxsx": "2026-11-18", "xboxss": "2026-11-18", "ps5pro": "2026-11-11"})
 check29("price_age: label + fresh", s.price_age("2026-11-11", _date(2026, 11, 16)), ("prices checked 11 Nov", False))
 check29("price_age: exactly 14 days is not stale, 15 is", (s.price_age("2026-11-01", _date(2026, 11, 15))[1], s.price_age("2026-11-01", _date(2026, 11, 16))[1]), (False, True))
 check29("price_age: no date -> nothing", s.price_age(None, _date(2026, 11, 16)), ("", False))
@@ -927,3 +927,45 @@ check32("lazy Xbox title still reaches the AI screen", bool(run("xboxss", item("
 check32("PS5 titles pass the brand check", bool(s.re.search(CATS["ps5"]["must_have"], s.norm("Sony PlayStation 5 Slim console"))), True)
 check32("Quest titles pass the brand check", bool(s.re.search(CATS["quest3"]["must_have"], s.norm("Meta Quest 3 512GB"))), True)
 print(f"Xbox Series S: {sum(R32)}/{len(R32)} passed")
+
+# --- 33. Category sweep: one search covers every console (19 Nov 2026) ---
+R33 = []
+def check33(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R33.append(ok)
+_sw = s.CONFIG["sweeps"][0]
+check33("console sweep uses eBay's Video Game Consoles category", (_sw["category_ids"], _sw["limit"]), ("139971", 200))
+check33("sweep price window covers every member's window",
+        all(_sw["price_min"] <= CATS[c]["price_min"] and _sw["price_max"] >= CATS[c]["price_max"] for c in _sw["cats"]), True)
+check33("every swept product has a brand check (no cross-product AI screening)",
+        all(CATS[c].get("must_have") for c in _sw["cats"]), True)
+_calls33 = []
+_keep33 = s.ebay_search
+s.ebay_search = lambda tok, cat, q, **kw: (_calls33.append((cat.get("id"), q, kw.get("category_ids"), kw.get("limit"))), [])[1]
+s.LOG.clear()
+_out = s.run_sweeps("tok", False, 7)
+check33("one eBay call for all consoles", _calls33, [("consoles", None, "139971", 200)])
+check33("every enabled console gets the sweep's listings",
+        sorted(_out), sorted(c for c in _sw["cats"] if CATS[c].get("enabled")))
+_calls33.clear(); _sw["every_min"] = 2
+check33("not due on an odd minute", (s.run_sweeps("tok", False, 7), _calls33), ({}, []))
+check33("full scans always sweep", bool(s.run_sweeps("tok", True, 7)), True)
+_sw["every_min"] = 1
+class _E(Exception): pass
+def _fail(tok, cat, q, **kw):
+    r = type("R", (), {"status_code": 500})()
+    raise s.requests.HTTPError(response=r)
+s.ebay_search = _fail; s.LOG.clear()
+check33("failed sweep returns nothing, so products fall back to keyword searches", s.run_sweeps("tok", False, 7), {})
+check33("failed sweep is logged", any("falling back" in l for l in s.LOG), True)
+s.ebay_search = _keep33; s.LOG.clear()
+_n = len(s.SOFT)
+check33("PS5 listing in the Switch 2 check is dropped without the AI",
+        (run("switch2", item("Sony PlayStation 5 Slim console with controller", 250)), len(s.SOFT) - _n), (None, 0))
+check33("Xbox listing in the PS5 check is dropped without the AI",
+        (run("ps5", item("Xbox Series X console with controller", 250)), len(s.SOFT) - _n), (None, 0))
+_c = run("switch2", item("Nintendo Switch 2 console boxed", 220, ship=5))
+check33("cheap Switch 2 console is a DEAL", bool(_c) and _c["verdict"], "DEAL")
+check33("Steam Deck OLED title passes its brand check", bool(s.re.search(CATS["steamdeck"]["must_have"], s.norm("Valve Steam Deck OLED 512GB"))), True)
+print(f"Category sweep: {sum(R33)}/{len(R33)} passed")
