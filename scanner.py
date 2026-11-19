@@ -219,6 +219,9 @@ def triage(cat: dict, item: dict) -> dict | None:
 
     if cat.get("must_have") and not re.search(cat["must_have"], t):       # e.g. no "xbox" anywhere: eBay's loose
         return _no(cat["id"], "not this product")                        # search padding (car parts), final, no AI
+    if (cat.get("must_not") and re.search(cat["must_not"], t)            # e.g. "PlayStation 4 Slim" in the PS5 check:
+            and not re.search(cat.get("must_not_unless", r"(?!)"), t)):  # older model named, ours not: final, no AI
+        return _no(cat["id"], "older/other model")
 
     # stage 3: word filters. A hit here is a "maybe": the AI screen gets the final say.
     if junk_word(CONFIG.get("junk_soft", []), t) or any_match(cat["wrong"] + CONFIG.get("junk_patterns", []), t):

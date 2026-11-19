@@ -968,4 +968,15 @@ check33("Xbox listing in the PS5 check is dropped without the AI",
 _c = run("switch2", item("Nintendo Switch 2 console boxed", 220, ship=5))
 check33("cheap Switch 2 console is a DEAL", bool(_c) and _c["verdict"], "DEAL")
 check33("Steam Deck OLED title passes its brand check", bool(s.re.search(CATS["steamdeck"]["must_have"], s.norm("Valve Steam Deck OLED 512GB"))), True)
+for _cid, _title, _want in [
+        ("ps5", "Sony PlayStation 4 Slim 500GB Black Console+2 Dual Shock controllers", None),
+        ("ps5", "Sony Playstation 2 Slim Boxed with 6 Games", None),
+        ("ps5pro", "Sony PlayStation 4 Pro 1TB Console with Controller - Black", None),
+        ("xboxsx", "Microsoft Xbox One X 1TB console with controller", None),
+        ("switch2", "Nintendo Switch OLED console white boxed", None)]:
+    _n = len(s.SOFT)
+    check33(f"older model dropped without the AI: {_title[:40]}", (run(_cid, item(_title, 150)), len(s.SOFT) - _n), (_want, 0))
+_n = len(s.SOFT)
+_c = run("ps5", item("PS5 Slim Disc console with controller + PS4 games", 250, ship=5))
+check33("PS5 bundle that mentions PS4 games is not dropped by the older-model rule", bool(_c) or len(s.SOFT) > _n, True)
 print(f"Category sweep: {sum(R33)}/{len(R33)} passed")

@@ -138,7 +138,9 @@
       ],
       "ai_hint": "Valve Steam Deck OLED handheld, 512GB or 1TB (NOT the LCD model, not 64/256GB).",
       "must_have": "\\bsteam ?deck\\b",
-      "prices_checked": "2026-11-05"
+      "prices_checked": "2026-11-05",
+      "must_not": "\\blcd\\b|\\b(64|256) ?gb\\b",
+      "must_not_unless": "\\boled\\b"
     },
     {
       "id": "sony",
@@ -598,7 +600,9 @@
       "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
       "ai_hint": "Nintendo Switch 2 console (NOT Switch OLED, Lite or the original Switch).",
       "must_have": "\\bswitch\\b",
-      "prices_checked": "2026-11-05"
+      "prices_checked": "2026-11-05",
+      "must_not": "\\b(oled|lite)\\b|\\bswitch ?1\\b|\\bv2\\b",
+      "must_not_unless": "\\bswitch ?2\\b"
     },
     {
       "id": "osmo3",
@@ -734,7 +738,9 @@
       },
       "fast": true,
       "fast_every_min": 3,
-      "must_have": "\\b(ps ?5|playstation)\\b"
+      "must_have": "\\b(ps ?5|playstation)\\b",
+      "must_not": "\\b(ps ?[1-4]|playstation ?[1-4]|ps ?one|psp|vita|ps ?vr2?)\\b",
+      "must_not_unless": "\\b(ps ?5|playstation ?5)\\b"
     },
     {
       "id": "xboxsx",
@@ -817,7 +823,9 @@
       "offer_channel": {
         "min_safe_profit": 30
       },
-      "must_have": "\\bxbox\\b"
+      "must_have": "\\bxbox\\b",
+      "must_not": "\\bxbox ?(one|360)\\b|\\boriginal xbox\\b",
+      "must_not_unless": "\\bseries ?[xs]\\b"
     },
     {
       "id": "xboxss",
@@ -899,7 +907,9 @@
       "min_safe_profit": 100,
       "no_offers": true,
       "needs_controller": true,
-      "must_have": "\\bxbox\\b"
+      "must_have": "\\bxbox\\b",
+      "must_not": "\\bxbox ?(one|360)\\b|\\boriginal xbox\\b",
+      "must_not_unless": "\\bseries ?[xs]\\b"
     },
     {
       "id": "ps5pro",
@@ -974,7 +984,9 @@
       "ai_hint": "Sony PlayStation 5 Pro console, 2TB (NOT a regular PS5, not a DualSense Edge or other controller on its own). Must include at least one controller.",
       "needs_controller": true,
       "prices_note": "Re-checked 11 Nov 2026: plain used sold median ~£870 (shown price incl. buyer fee), top 15% ~£937; new in shops £789.99 when in stock. Max buy £770 so a used one never costs more than new.",
-      "must_have": "\\b(ps ?5|playstation)\\b"
+      "must_have": "\\b(ps ?5|playstation)\\b",
+      "must_not": "\\b(ps ?[1-4]|playstation ?[1-4]|ps ?one|psp|vita|ps ?vr2?)\\b",
+      "must_not_unless": "\\b(ps ?5|playstation ?5)\\b"
     }
   ],
   "phone_rules": {
