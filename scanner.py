@@ -466,10 +466,11 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
 TOKEN_KEY = "ebay_app_token"     # bot_state row holding the cached eBay application token + its expiry
 
 
-def ebay_token() -> str:
-    """Reuse the eBay application token (valid ~2 hours) instead of asking eBay for a new one every run."""
+def ebay_token(force: bool = False) -> str:
+    """Reuse the eBay application token (valid ~2 hours) instead of asking eBay for a new one every run.
+    force=True (the hourly 'token' job) always fetches a new one, so the Supabase scanner always has 1+ hour left."""
     base = os.getenv("SUPABASE_URL")
-    if base and not DRY_RUN:
+    if base and not DRY_RUN and not force:
         try:
             st = requests.get(f"{base}/rest/v1/bot_state", headers=sb_headers(), timeout=15,
                               params={"select": "value", "key": f"eq.{TOKEN_KEY}"}).json()
@@ -1638,7 +1639,16 @@ def send_test() -> int:
     return 0
 
 
+def refresh_token() -> int:
+    """'token' mode: renew the eBay token for the Supabase scanner (the eBay app keys stay in GitHub secrets)."""
+    ebay_token(force=True)
+    print("eBay token renewed and saved to bot_state.")
+    return 0
+
+
 if __name__ == "__main__":
     if "--test" in sys.argv:
         sys.exit(send_test())
+    if "--token" in sys.argv:
+        sys.exit(refresh_token())
     sys.exit(daily_digest() if "--digest" in sys.argv else main())
