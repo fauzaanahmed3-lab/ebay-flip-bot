@@ -390,6 +390,15 @@ export function forOffers(C: Any, row: Any): boolean {
 export function forDeals(C: Any, row: Any): boolean {
   return row.verdict === "DEAL" && !quiet(row) && !["ai_rejected", "gone_before_post"].includes(row.status) && !catById(C, row.category).offers_only;
 }
+// 3rd lane (#small-flips): weaker cards that only pass because of the 25 Nov eased margins. Never HOT.
+export function isSmall(C: Any, row: Any): boolean {
+  const lane = C.small_lane;
+  if (!lane || row.rating === "HOT" || !["DEAL", "OFFER"].includes(row.verdict)) return false;
+  const floor = (lane.below_safe_profit ?? {})[row.category];
+  if (row.verdict === "DEAL" && floor !== undefined && Number(row.safe_profit || 0) < floor) return true;
+  const t = Number(row.buy_target || 0), allIn = Number(row.all_in ?? (Number(row.price || 0) + Number(row.shipping || 0)));
+  return row.verdict === "OFFER" && t > 0 && allIn > t * (1 + (lane.offer_zone_pct ?? 0.12));
+}
 export function catById(C: Any, id: string): Any {
   return C.categories.find((c: Any) => c.id === id) ?? {};
 }

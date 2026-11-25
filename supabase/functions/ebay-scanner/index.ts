@@ -183,6 +183,7 @@ function aiLine(v: string, why: string): string {
 async function markCardGone(R: Run, msgId: string | null, postedAt: string | null) {
   let url = R.hooks.deals;
   if (msgId?.startsWith("offers:")) { url = R.hooks.offers; msgId = msgId.split(":", 2)[1]; }
+  else if (msgId?.startsWith("small:")) { url = R.hooks.small; msgId = msgId.split(":", 2)[1]; }
   if (!msgId || !url || !R.post) return;
   const mins = postedAt ? Math.round((Date.now() - Date.parse(postedAt)) / 60000) : null;
   const when = mins !== null && mins < 120 ? `Gone after ${mins} min` : "Gone";
@@ -455,16 +456,18 @@ async function postAndCheck(R: Run, items: { cat: Any; row: Any; details: Any }[
       const row = { ...(savedBy.get(x.row.item_id) ?? {}), ...x.row };
       if (!done.has(x)) row.notes = "🤖 AI checking…" + (row.notes ? "\n" + row.notes : "");
       const { payload } = L.alertPayload(C, row, isOffer);
-      LOG.push((isOffer ? `🟡 ${L.short(row)}: posting to #send-an-offer` + (row.suggested_offer ? ` (offer £${row.suggested_offer})` : "")
+      const small = !!R.hooks.small && L.isSmall(C, row);   // 3rd lane: silent, no @everyone
+      if (small) { delete payload.content; payload.allowed_mentions = { parse: [] }; payload.flags = 4096; }
+      LOG.push(small ? `🟢 ${L.short(row)}: smaller flip, posting to #small-flips` + (done.has(x) ? ` · AI ${row.ai_verdict}` : " · AI still checking") : (isOffer ? `🟡 ${L.short(row)}: posting to #send-an-offer` + (row.suggested_offer ? ` (offer £${row.suggested_offer})` : "")
         : `✅ ${L.short(row)}: DEAL, posting`) + (done.has(x) ? ` · AI ${row.ai_verdict} (${row.ai_model || "-"})` : " · AI still checking"));
       R.notable = true;
       if (!R.post) continue;
-      const url = isOffer ? R.hooks.offers : R.hooks.deals;
+      const url = small ? R.hooks.small : isOffer ? R.hooks.offers : R.hooks.deals;
       if (!url) { LOG.push(`⚠️ no webhook for ${isOffer ? "#send-an-offer" : "#deals"}`); continue; }
       try {
         const msg = await postHook(url, payload);
         posted.set(x, { url, msg, offers: isOffer });
-        await sb(`${R.table}?item_id=eq.${encodeURIComponent(row.item_id)}`, { method: "PATCH", body: JSON.stringify({ posted_at: new Date().toISOString(), discord_msg_id: isOffer ? (msg ? `offers:${msg}` : null) : msg, live_checks: 0 }) });
+        await sb(`${R.table}?item_id=eq.${encodeURIComponent(row.item_id)}`, { method: "PATCH", body: JSON.stringify({ posted_at: new Date().toISOString(), discord_msg_id: msg ? (small ? `small:${msg}` : isOffer ? `offers:${msg}` : msg) : null, live_checks: 0 }) });
       } catch (e) {
         LOG.push(`⚠️ Discord alert failed (${(e as Error).message}), will retry next run`);
         await sb(`${R.table}?item_id=eq.${encodeURIComponent(row.item_id)}`, { method: "PATCH", body: JSON.stringify({ status: "retry" }) }).catch(() => {});

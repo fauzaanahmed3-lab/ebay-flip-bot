@@ -1053,3 +1053,21 @@ check34("screen paused when only the reserve is left", (s.screen_soft({}, set(),
 s.ai_allowance_left = _keep_left; s.SOFT.clear()
 check34("2.5 Flash-Lite (shut down) removed", "gemini-2.5-flash-lite" in s.CONFIG["ai_models"], False)
 print(f"25 Nov description + card + AI: {sum(R34)}/{len(R34)} passed")
+
+# --- 35. Third lane #small-flips (25 Nov): weaker cards from the eased margins ---
+R35 = []
+def check35(name, got, want):
+    ok = got == want
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+    R35.append(ok)
+_b = {"category": "xboxsx", "verdict": "DEAL", "rating": "SOLID", "buy_target": 494.6, "all_in": 480}
+check35("Xbox X deal under the old £90 floor -> small", s.is_small({**_b, "safe_profit": 70}), True)
+check35("Xbox X deal over £90 -> normal #deals", s.is_small({**_b, "safe_profit": 95}), False)
+check35("HOT never goes small", s.is_small({**_b, "safe_profit": 70, "rating": "HOT"}), False)
+check35("Series S deal under £100 -> small", s.is_small({**_b, "category": "xboxss", "safe_profit": 85}), True)
+check35("PS5 deal (no old floor) -> normal", s.is_small({**_b, "category": "ps5", "safe_profit": 61}), False)
+_o = {"category": "ps5", "verdict": "OFFER", "rating": "CHECK", "buy_target": 400, "safe_profit": 30}
+check35("offer 13% over target (new 12-15% band) -> small", s.is_small({**_o, "all_in": 452}), True)
+check35("offer 10% over target -> normal #send-an-offer", s.is_small({**_o, "all_in": 440}), False)
+check35("NOT A DEAL never small", s.is_small({**_o, "verdict": "PASS", "all_in": 452}), False)
+print(f"Small lane: {sum(R35)}/{len(R35)} passed")

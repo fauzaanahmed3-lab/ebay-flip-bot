@@ -1,6 +1,7 @@
 {
   "packaging_cost": 1,
   "offer_zone_pct": 0.15,
+  "small_lane": {"_note": "3rd channel (25 Nov): weaker cards that only pass because of the 25 Nov eased margins. HOT never goes here; posted silently.", "offer_zone_pct": 0.12, "below_safe_profit": {"xboxsx": 90, "xboxss": 100}},
   "max_detail_lookups": 10,
   "unconfirmed_extra_margin": 30,
   "hot_ratio": 1.5,

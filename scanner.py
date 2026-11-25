@@ -602,6 +602,8 @@ def mark_card_gone(msg_id: str | None, posted_at: str | None, now: datetime) -> 
     url = os.getenv("DISCORD_WEBHOOK_URL")
     if msg_id and msg_id.startswith("offers:"):                # card lives in #send-an-offer
         url, msg_id = os.getenv("DISCORD_OFFERS_WEBHOOK_URL"), msg_id.split(":", 1)[1]
+    elif msg_id and msg_id.startswith("small:"):              # card lives in #small-flips
+        url, msg_id = os.getenv("DISCORD_SMALL_WEBHOOK_URL"), msg_id.split(":", 1)[1]
     if not msg_id or not url or DRY_RUN:
         return
     mins = None
@@ -1211,6 +1213,19 @@ def for_deals(row: dict) -> bool:
     """Goes to #deals (unchanged rules), except categories that only use #send-an-offer."""
     return (row.get("verdict") == "DEAL" and not quiet(row) and row.get("status") not in ("ai_rejected", "gone_before_post")
             and not CAT_BY_ID.get(row.get("category"), {}).get("offers_only"))
+
+
+def is_small(row: dict) -> bool:
+    """3rd lane (#small-flips): weaker cards that only pass because of the 25 Nov eased margins. Never HOT."""
+    lane = CONFIG.get("small_lane")
+    if not lane or row.get("rating") == "HOT" or row.get("verdict") not in ("DEAL", "OFFER"):
+        return False
+    floor = (lane.get("below_safe_profit") or {}).get(row.get("category"))
+    if row["verdict"] == "DEAL" and floor is not None and float(row.get("safe_profit") or 0) < floor:
+        return True
+    t = float(row.get("buy_target") or 0)
+    all_in = float(row["all_in"]) if row.get("all_in") is not None else float(row.get("price") or 0) + float(row.get("shipping") or 0)
+    return row["verdict"] == "OFFER" and t > 0 and all_in > t * (1 + lane.get("offer_zone_pct", 0.12))
 
 
 def quiet(row: dict) -> bool:
