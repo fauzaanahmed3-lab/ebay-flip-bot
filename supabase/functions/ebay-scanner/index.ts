@@ -43,6 +43,7 @@ type Run = {
   usage: Map<string, number>; limited: Map<string, number>; exhausted: Set<string>; exhaustedDirty: boolean;
   token: string; hooks: Record<string, string | null>; gone: Set<string>; t0: number; timing: Record<string, number>;
   notable: boolean; savedIds: Set<string>; lockKey: string; lockReleased: boolean; screenLocked?: boolean;
+  aiDown: boolean; aiOk: boolean; aiFail: boolean;   // aiDown: Google was failing in a recent run, so cards post without waiting
 };
 const bump = (R: Run, k: string, n = 1) => R.usage.set(k, (R.usage.get(k) ?? 0) + n);
 const mark = (R: Run, k: string) => (R.timing[k] = Date.now() - R.t0);
@@ -106,10 +107,12 @@ async function aiCall(R: Run, models: string[], parts: Any[], maxTokens: number,
       try {
         const j = await r.json();
         const text = (j.candidates[0].content.parts as Any[]).filter((p) => !p.thought).map((p) => p.text ?? "").join("");
+        R.aiOk = true;
         return [text.replaceAll("```json", "").replaceAll("```", ""), model];
       } catch { continue; }
     }
   }
+  R.aiFail = true;
   return [null, ""];
 }
 async function aiCheck(R: Run, cat: Any, row: Any, details: Any): Promise<[string, string, string]> {
@@ -432,7 +435,9 @@ async function saveRows(R: Run, rows: Any[]): Promise<Any[]> {
 async function postAndCheck(R: Run, items: { cat: Any; row: Any; details: Any }[]) {
   if (!items.length) return;
   const C = R.C, LOG = R.ctx.LOG;
-  const waitMs = C.edge?.ai_wait_ms ?? 4000;
+  // AI failing in a recent run (Google busy / allowance used up): post at once, the AI still edits the card if it answers
+  const waitMs = R.aiDown ? 0 : (C.edge?.ai_wait_ms ?? 4000);
+  if (R.aiDown) LOG.push("🤖 AI was failing a moment ago: posting without waiting for it");
   const done = new Map<Any, [string, string, string]>();
   const checks = items.map((x) => aiCheck(R, x.cat, x.row, x.details).then((res) => { done.set(x, res); return res; }));
   await Promise.race([Promise.all(checks), sleep(waitMs)]);
@@ -579,7 +584,7 @@ Deno.serve(async (req) => {
   let mode = (u.searchParams.get("mode") ?? "run") as Any;
   const t0 = Date.now();
   // one round trip for everything the run needs to know
-  const keys = ["runner", "scanner_shadow", "ebay_app_token", "last_full_scan", "shadow_last_full_scan", "ai_exhausted", "scanner_config"];
+  const keys = ["runner", "scanner_shadow", "ebay_app_token", "last_full_scan", "shadow_last_full_scan", "ai_exhausted", "scanner_config", "ai_down_until"];
   const stRows = await sb(`bot_state?select=key,value&key=in.(${keys.join(",")})`).catch(() => []) ?? [];
   const state: Record<string, string> = Object.fromEntries(stRows.map((r: Any) => [r.key, r.value]));
   if (mode === "run" && state.runner !== "supabase") {
@@ -621,6 +626,7 @@ Deno.serve(async (req) => {
     write: mode !== "dry", post: mode === "run", ai: mode === "run",
     usage: new Map(), limited: new Map(), exhausted: new Set(), exhaustedDirty: false,
     token: "", hooks: {}, gone: new Set(), t0, timing: {}, notable: false, savedIds: new Set(), lockKey, lockReleased: false,
+    aiDown: Date.parse(state.ai_down_until ?? "") > Date.now(), aiOk: false, aiFail: false,
   };
   let out: Any = {};
   try {
@@ -649,6 +655,8 @@ Deno.serve(async (req) => {
         tail.push(setState("last_run", new Date().toISOString()).catch(() => {}));
         if (R.notable) { R.ctx.LOG.push(`⏱️ run took ${(R.timing.done / 1000).toFixed(1)} s (searched ${((R.timing.searched ?? 0) / 1000).toFixed(1)} s, posted ${R.timing.posted ? (R.timing.posted / 1000).toFixed(1) + " s" : "-"})`); tail.push(postLogs(R).catch(() => {})); }
       }
+      if (mode === "run" && R.aiFail && !R.aiOk) tail.push(setState("ai_down_until", new Date(Date.now() + 3 * 60000).toISOString()).catch(() => {}));
+      else if (mode === "run" && R.aiOk && R.aiDown) tail.push(setState("ai_down_until", "").catch(() => {}));
       if (R.exhaustedDirty) tail.push(setState("ai_exhausted", JSON.stringify({ day: L.usageDay(), models: [...R.exhausted] })).catch(() => {}));
       await Promise.all(tail);
       if (!R.lockReleased) await rpc("release_lock", { p_key: lockKey }).catch(() => {});
