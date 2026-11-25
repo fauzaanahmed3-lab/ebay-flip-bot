@@ -1026,7 +1026,8 @@
     "\\bstrap\\b",
     "\\bpower ?banks?\\b",
     "\\bbattery (pack|strap|head ?strap)\\b",
-    "charging (dock|station|stand|cable)"
+    "charging (dock|station|stand|cable)",
+    "^(?!.*(\\b(console|consoles|headset|handheld|system|disc|digital|slim|oled|\\d+ ?(gb|tb))\\b|(\\bwith|\\bw/|\\+|&|\\band) (\\d+ |two |a |the |both )?(wireless |pro )?(dualsense |xbox |pro )?(controllers?|pads?)\\b)).*\\b(controllers?|dualsense|dual sense|joy ?cons?|gamepads?|touch plus)\\b"
   ],
   "max_buy": 500,
   "seller_min_feedback": 1,
