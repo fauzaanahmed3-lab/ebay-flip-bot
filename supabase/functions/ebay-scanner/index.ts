@@ -1,6 +1,6 @@
 // eBay Flip Bot scanner on Supabase (Edge Function `ebay-scanner`), ported from scanner.py on 25 Nov 2026.
-// Why: no GitHub start-up delay (~20-40 s per run), runs every 30 s, does the slow steps in parallel, and posts a
-// card before the AI photo check (the card is edited a few seconds later with the AI's answer).
+// Why: no GitHub start-up delay (~20-40 s per run), runs every 30 s, does the slow steps in parallel, and waits at most
+// 4 s for the AI photo check before posting (a late AI answer edits the card instead).
 //
 // pg_cron calls it every 30 s. bot_state 'runner' decides who does the live work:
 //   'github'   -> the GitHub bot is live; this function only runs in shadow mode if bot_state 'scanner_shadow' = 'on'
@@ -125,7 +125,7 @@ async function aiCheck(R: Run, cat: Any, row: Any, details: Any): Promise<[strin
       }
     } catch { /* photo optional */ }
   }
-  const [text, model] = await aiCall(R, R.C.ai_models ?? [], parts, 160, 12000);
+  const [text, model] = await aiCall(R, R.C.edge?.ai_models ?? R.C.ai_models ?? [], parts, 160, 12000);
   const got = text !== null ? L.parseAiCheck(text) : null;
   return got ? [got[0], got[1], model] : ["unavailable", "AI check unavailable right now", ""];
 }
@@ -409,32 +409,39 @@ async function saveRows(R: Run, rows: Any[]): Promise<Any[]> {
   return saved ?? norm;
 }
 
-// Save, post straight away, THEN run the AI photo/description check and edit the card with its answer.
+// Start the AI photo/description checks for every card at once, wait at most `ai_wait_ms` (default 4 s) for them,
+// then post. A card the AI already rejected is never posted (it goes to #ai-blocked via the database trigger); a card
+// whose AI answer is still pending is posted straight away with "AI checking…" and edited when the answer arrives.
 async function postAndCheck(R: Run, items: { cat: Any; row: Any; details: Any }[]) {
   if (!items.length) return;
   const C = R.C, LOG = R.ctx.LOG;
-  const aiFirst = !(C.edge?.ai_after_post ?? true);
-  if (aiFirst) await Promise.all(items.map(async (x) => { applyAi(x.row, await aiCheck(R, x.cat, x.row, x.details)); }));
+  const waitMs = C.edge?.ai_wait_ms ?? 4000;
+  const done = new Map<Any, [string, string, string]>();
+  const checks = items.map((x) => aiCheck(R, x.cat, x.row, x.details).then((res) => { done.set(x, res); return res; }));
+  await Promise.race([Promise.all(checks), sleep(waitMs)]);
+  mark(R, "ai_first_wait");
+  for (const x of items) { const res = done.get(x); if (res) applyAi(x.row, res); }
   const saved = await saveRows(R, items.map((x) => x.row));
   const savedBy = new Map(saved.map((r: Any) => [r.item_id, r]));
+  for (const x of items) if (x.row.status === "ai_rejected") LOG.push(`🤖❌ ${L.short(x.row)}: AI said no (${x.row.ai_reason || "no reason"}), not posted`);
   const rank: Record<string, number> = { HOT: 0, SOLID: 1 };
   const deals = items.filter((x) => L.forDeals(C, x.row)).sort((a, b) => (rank[a.row.rating] ?? 2) - (rank[b.row.rating] ?? 2) || Number(a.row.verdict !== "DEAL") - Number(b.row.verdict !== "DEAL") || Number(b.row.profit || 0) - Number(a.row.profit || 0));
   const offers = items.filter((x) => L.forOffers(C, x.row)).sort((a, b) => Number(b.row.safe_profit || 0) - Number(a.row.safe_profit || 0));
-  const posted: { x: Any; url: string; msg: string | null; offers: boolean }[] = [];
+  const posted = new Map<Any, { url: string; msg: string | null; offers: boolean }>();
   for (const [list, isOffer] of [[deals, false], [offers, true]] as [Any[], boolean][]) {
     for (const x of list) {
       const row = { ...(savedBy.get(x.row.item_id) ?? {}), ...x.row };
-      if (!aiFirst) row.notes = "🤖 AI checking…" + (row.notes ? "\n" + row.notes : "");
+      if (!done.has(x)) row.notes = "🤖 AI checking…" + (row.notes ? "\n" + row.notes : "");
       const { payload } = L.alertPayload(C, row, isOffer);
-      LOG.push(isOffer ? `🟡 ${L.short(row)}: posting to #send-an-offer` + (row.suggested_offer ? ` (offer £${row.suggested_offer})` : "")
-        : `✅ ${L.short(row)}: DEAL, posting`);
+      LOG.push((isOffer ? `🟡 ${L.short(row)}: posting to #send-an-offer` + (row.suggested_offer ? ` (offer £${row.suggested_offer})` : "")
+        : `✅ ${L.short(row)}: DEAL, posting`) + (done.has(x) ? ` · AI ${row.ai_verdict} (${row.ai_model || "-"})` : " · AI still checking"));
       R.notable = true;
       if (!R.post) continue;
       const url = isOffer ? R.hooks.offers : R.hooks.deals;
       if (!url) { LOG.push(`⚠️ no webhook for ${isOffer ? "#send-an-offer" : "#deals"}`); continue; }
       try {
         const msg = await postHook(url, payload);
-        posted.push({ x, url, msg, offers: isOffer });
+        posted.set(x, { url, msg, offers: isOffer });
         await sb(`${R.table}?item_id=eq.${encodeURIComponent(row.item_id)}`, { method: "PATCH", body: JSON.stringify({ posted_at: new Date().toISOString(), discord_msg_id: isOffer ? (msg ? `offers:${msg}` : null) : msg, live_checks: 0 }) });
       } catch (e) {
         LOG.push(`⚠️ Discord alert failed (${(e as Error).message}), will retry next run`);
@@ -443,16 +450,17 @@ async function postAndCheck(R: Run, items: { cat: Any; row: Any; details: Any }[
     }
   }
   mark(R, "posted");
-  if (aiFirst) return;
-  // AI after posting: all checks in parallel, then edit each card (edits never ping)
-  await Promise.all(items.map(async (x) => {
-    const res = await aiCheck(R, x.cat, x.row, x.details);
+  const late = items.filter((x) => !done.has(x));
+  if (!late.length) return;
+  // the slow AI answers: save them and edit the cards (edits never ping)
+  await Promise.all(late.map(async (x) => {
+    const res = await checks[items.indexOf(x)];
     applyAi(x.row, res);
-    const p = posted.find((q) => q.x === x);
     const patch: Any = { ai_verdict: x.row.ai_verdict, ai_reason: x.row.ai_reason, ai_model: x.row.ai_model, notes: x.row.notes };
     if (x.row.status === "ai_rejected") patch.status = "ai_rejected";
     if (R.write) await sb(`${R.table}?item_id=eq.${encodeURIComponent(x.row.item_id)}`, { method: "PATCH", body: JSON.stringify(patch) }).catch(() => {});
-    LOG.push(x.row.ai_verdict === "no" ? `🤖❌ ${L.short(x.row)}: AI said no (${x.row.ai_reason || "no reason"}), card marked` : `🤖 ${L.short(x.row)}: AI ${x.row.ai_verdict} (${x.row.ai_model || "-"})`);
+    LOG.push(x.row.ai_verdict === "no" ? `🤖❌ ${L.short(x.row)}: AI said no after posting (${x.row.ai_reason || "no reason"}), card marked` : `🤖 ${L.short(x.row)}: AI ${x.row.ai_verdict} (${x.row.ai_model || "-"}), card updated`);
+    const p = posted.get(x);
     if (!p?.msg) return;
     const { payload } = L.alertPayload(C, x.row, p.offers);
     if (x.row.ai_verdict === "no") {
@@ -461,8 +469,6 @@ async function postAndCheck(R: Run, items: { cat: Any; row: Any; details: Any }[
       e.title = ("🚫 AI SAYS SKIP · " + e.title).slice(0, 256);
       e.description = `🚫 **AI: probably not a working ${x.row.variant}** (${x.row.ai_reason || "no reason"}). Check before buying.` + (e.description ? "\n" + e.description : "");
     }
-    delete payload.content;                                  // keep the original ping text as it was
-    payload.allowed_mentions = { parse: [] };
     await editHook(p.url, p.msg, { embeds: payload.embeds, allowed_mentions: { parse: [] } });
   }));
   mark(R, "ai_done");
@@ -569,6 +575,22 @@ Deno.serve(async (req) => {
     return Response.json({ runner: state.runner ?? "github", shadow: state.scanner_shadow ?? "off", token_minutes_left: tok,
       webhooks: Object.fromEntries(Object.entries(hooks ?? {}).map(([k, v]) => [k, typeof v === "string" && v.startsWith("https://discord.com/api/webhooks/") ? "set" : "missing"])),
       gemini: GEMINI() ? "set" : "missing", categories: (CONFIG_FILE as Any).categories.filter((c: Any) => c.enabled).map((c: Any) => c.id) });
+  }
+  if (mode === "selftest") {                          // posts a test card to #bot-logs and edits it: proves Vault + Discord work
+    const hooks = await rpc("scanner_hooks");
+    const C0 = CONFIG_FILE as Any;
+    const row = { item_id: "TEST", category: "ps5", variant: "PS5 Disc (original)", title: "TEST CARD from the Supabase scanner (not a real listing)",
+      url: "https://www.ebay.co.uk", image_url: null, price: 250, shipping: 0, all_in: 250, buy_target: 280, expected_sell: 360, profit: 90,
+      safe_profit: 60, required_profit: 50, verdict: "DEAL", suggested_offer: null, lane: "EXACT", rating: "SOLID", seller_feedback: 120,
+      seller_pct: 100, delivery: "free", location: "Leeds · LS6", notes: "🤖 AI checking…\n🏷️ BIZ ~£70" };
+    const { payload } = L.alertPayload(C0, row, false);
+    delete payload.content; payload.allowed_mentions = { parse: [] }; payload.flags = 4096;
+    const t1 = Date.now();
+    const id = await postHook(hooks.logs, payload);
+    const posted_ms = Date.now() - t1;
+    row.notes = "🤖 AI OK: test edit worked\n🏷️ BIZ ~£70";
+    const ok = id ? await editHook(hooks.logs, id, { embeds: L.alertPayload(C0, row, false).payload.embeds, allowed_mentions: { parse: [] } }) : false;
+    return Response.json({ posted: !!id, posted_ms, edited: ok });
   }
   const lockKey = mode === "run" ? "scanner_lock" : "scanner_shadow_lock";
   if (mode !== "dry") {
