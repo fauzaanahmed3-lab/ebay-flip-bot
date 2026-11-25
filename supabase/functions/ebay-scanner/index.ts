@@ -42,7 +42,7 @@ type Run = {
   C: Any; ctx: L.Ctx; table: string; write: boolean; post: boolean; ai: boolean;
   usage: Map<string, number>; limited: Map<string, number>; exhausted: Set<string>; exhaustedDirty: boolean;
   token: string; hooks: Record<string, string | null>; gone: Set<string>; t0: number; timing: Record<string, number>;
-  notable: boolean; savedIds: Set<string>;
+  notable: boolean; savedIds: Set<string>; lockKey: string; lockReleased: boolean; screenLocked?: boolean;
 };
 const bump = (R: Run, k: string, n = 1) => R.usage.set(k, (R.usage.get(k) ?? 0) + n);
 const mark = (R: Run, k: string) => (R.timing[k] = Date.now() - R.t0);
@@ -140,7 +140,7 @@ async function aiScreen(R: Run, batch: [Any, Any][]): Promise<Map<string, [strin
   const size = R.C.ai_screen_batch ?? 30;
   for (let k = 0; k < batch.length; k += size) {
     const part = batch.slice(k, k + size);
-    const [text, model] = await aiCall(R, R.C.ai_screen_models ?? R.C.ai_models ?? [], [{ text: L.screenPrompt(part) }], 60 * part.length + 200, 30000);
+    const [text, model] = await aiCall(R, R.C.ai_screen_models ?? R.C.ai_models ?? [], [{ text: L.screenPrompt(part) }], 60 * part.length + 200, 20000);
     let answers: Any = null;
     if (text !== null) { try { answers = JSON.parse(text.slice(text.indexOf("["), text.lastIndexOf("]") + 1)); } catch { answers = null; } }
     if (answers === null) return out.size ? out : null;
@@ -299,9 +299,13 @@ async function scan(R: Run, state: Record<string, string>, usedToday: Record<str
     todo.push([cat, c]);
   }
   const screenP = (async () => {
-    if (!todo.length) return { rejects: [] as Any[], rescued: [] as [Any, Any][] };
+    if (!todo.length || !R.ai) return { rejects: [] as Any[], rescued: [] as [Any, Any][] };
+    // the AI screen can be slow (busy Gemini): it has its own lock so it never holds up the next 30-s scan
+    if (R.write && (await rpc("try_lock", { p_key: "scanner_screen_lock", p_secs: 90 }).catch(() => false)) !== true) {
+      return { rejects: [], rescued: [] };
+    }
+    R.screenLocked = true;
     const left = await aiAllowanceLeft(R, usedToday);
-    if (!R.ai) return { rejects: [], rescued: [] };
     if (left !== null && left <= (C.ai_reserve_for_checks ?? 0)) {
       LOG.push(`🤖 AI screen paused: ${left} AI calls left today are kept for photo checks (${todo.length} filtered listing(s) skipped)`);
       return { rejects: [], rescued: [] };
@@ -383,7 +387,16 @@ async function scan(R: Run, state: Record<string, string>, usedToday: Record<str
   await lookAndScore(fresh);
   mark(R, "looked_up");
   await postAndCheck(R, toPost.splice(0));               // first wave posts now, before waiting for the AI screen
+  // save the first wave and free the scan lock: the next 30-s tick can start while a slow AI screen finishes
+  await saveRows(R, dedupe(results).filter((r) => !R.savedIds.has(r.item_id)));
+  if (R.mode === "run") {                                // survival checks + tracker inside the lock (never twice at once)
+    await Promise.all([survivalChecks(R).catch((e) => LOG.push(`survival checks skipped: ${e.message}`)),
+      full ? trackOutcomes(R).catch((e) => LOG.push(`tracker skipped: ${e.message}`)) : Promise.resolve()]);
+  }
+  if (R.mode === "run" && R.write) { await rpc("release_lock", { p_key: R.lockKey }).catch(() => {}); R.lockReleased = true; }
+  mark(R, "first_wave_done");
   const scr = await screenP;
+  if (R.screenLocked) await rpc("release_lock", { p_key: "scanner_screen_lock" }).catch(() => {});
   if (rescuedNow.length || scr.rescued.length) {
     await lookAndScore([...rescuedNow, ...scr.rescued]);
     await postAndCheck(R, toPost.splice(0));
@@ -391,14 +404,18 @@ async function scan(R: Run, state: Record<string, string>, usedToday: Record<str
   results.push(...scr.rejects);
 
   // 6. save everything we looked at (posted rows were saved first, inside postAndCheck)
-  const byId = new Map<string, Any>();
-  for (const r of results) if (!byId.has(r.item_id) || byId.get(r.item_id).verdict === "REJECT") byId.set(r.item_id, r);
-  const rest = [...byId.values()].filter((r) => !R.savedIds.has(r.item_id));
-  await saveRows(R, rest);
+  const byId = new Map<string, Any>(dedupe(results).map((r) => [r.item_id, r]));
+  await saveRows(R, [...byId.values()].filter((r) => !R.savedIds.has(r.item_id)));
   if (!fresh.length && !rescuedNow.length && !scr.rescued.length) LOG.push("Nothing new.");
   return { full, fresh: fresh.length, lookups, results: byId.size };
 }
 
+// one row per listing (a listing can turn up in two categories): keep the non-REJECT one
+function dedupe(rows: Any[]): Any[] {
+  const byId = new Map<string, Any>();
+  for (const r of rows) if (!byId.has(r.item_id) || byId.get(r.item_id).verdict === "REJECT") byId.set(r.item_id, r);
+  return [...byId.values()];
+}
 // rows -> flip_listings (same shape as scanner.py save_new)
 async function saveRows(R: Run, rows: Any[]): Promise<Any[]> {
   if (!rows.length || !R.write) return rows;
@@ -603,7 +620,7 @@ Deno.serve(async (req) => {
     mode, C, ctx: L.newCtx(C), table: mode === "run" ? "flip_listings" : "shadow_listings",
     write: mode !== "dry", post: mode === "run", ai: mode === "run",
     usage: new Map(), limited: new Map(), exhausted: new Set(), exhaustedDirty: false,
-    token: "", hooks: {}, gone: new Set(), t0, timing: {}, notable: false, savedIds: new Set(),
+    token: "", hooks: {}, gone: new Set(), t0, timing: {}, notable: false, savedIds: new Set(), lockKey, lockReleased: false,
   };
   let out: Any = {};
   try {
@@ -619,10 +636,6 @@ Deno.serve(async (req) => {
     R.hooks = hooks ?? {};
     const usedToday: Record<string, number> = Object.fromEntries((used ?? []).map((r: Any) => [r.name, r.calls]));
     out = await scan(R, state, usedToday);
-    if (!out.skipped && mode === "run") {
-      await Promise.all([survivalChecks(R).catch((e) => R.ctx.LOG.push(`survival checks skipped: ${e.message}`)),
-        out.full ? trackOutcomes(R).catch((e) => R.ctx.LOG.push(`tracker skipped: ${e.message}`)) : Promise.resolve()]);
-    }
     if (!out.skipped && out.full && R.write) await setState(mode === "run" ? "last_full_scan" : "shadow_last_full_scan", new Date().toISOString());
   } catch (e) {
     out.error = (e as Error).message;
@@ -638,7 +651,7 @@ Deno.serve(async (req) => {
       }
       if (R.exhaustedDirty) tail.push(setState("ai_exhausted", JSON.stringify({ day: L.usageDay(), models: [...R.exhausted] })).catch(() => {}));
       await Promise.all(tail);
-      await rpc("release_lock", { p_key: lockKey }).catch(() => {});
+      if (!R.lockReleased) await rpc("release_lock", { p_key: lockKey }).catch(() => {});
     }
   }
   return Response.json({ mode, ...out, timing: R.timing, ebay_calls: R.usage.get("ebay") ?? 0, log: R.ctx.LOG.slice(0, mode === "dry" ? 200 : 40) });
