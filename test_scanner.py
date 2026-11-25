@@ -32,7 +32,7 @@ check("normalise 'WH-1000 XM 6'", "xm6" in s.norm("Sony WH-1000 XM 6"), True)
 check("steam deck target uses £100 rule", s.buy_target(530, 9), 402.7)   # B5: resale is net of eBay buyer fee (was 420)
 check("target never above £500", s.buy_target(985, 6), 500)
 
-r = run("quest3", item("Meta Quest 3 512GB with controllers", 230, fb=250), details())   # B5: was 240 (net resale is lower now)
+r = run("quest3", item("Meta Quest 3 512GB with controllers", 235, fb=250), details())   # 25 Nov prices: 230 is now "too cheap to be true"
 check("quest 512 exact + big margin = HOT", (r["lane"], r["verdict"], r["rating"], r["variant"]), ("EXACT", "DEAL", "HOT", "Quest 3 · 512GB"))
 check("quest 3S rejected", run("quest3", item("Meta Quest 3S 128GB", 150), details()), None)
 check("quest 3 standalone not mistaken for 3S", s.triage(CATS["quest3"], item("Meta Quest 3 Standalone VR Headset", 150))["lane"], "EXACT")
@@ -172,7 +172,7 @@ r = run("switcholed", item("Nintendo Switch OLED White console with dock and joy
 check5("Switch OLED deal found", (r["variant"], r["verdict"]), ("Switch OLED", "DEAL"))
 check5("Switch OLED tablet only rejected", s.triage(CATS["switcholed"], item("Nintendo Switch OLED console only", 90)), None)
 check5("Switch Lite rejected", s.triage(CATS["switcholed"], item("Nintendo Switch Lite OLED screen", 60)), None)
-r = run("switch2", item("Nintendo Switch 2 Console Boxed", 255, fb=200), details())
+r = run("switch2", item("Nintendo Switch 2 Console Boxed", 250, fb=200), details())   # 25 Nov: target £265.54
 check5("Switch 2 deal found", r["verdict"], "DEAL")
 check5("case for Switch 2 rejected", s.triage(CATS["switch2"], item("Hard case for Nintendo Switch 2", 20)), None)
 r = run("osmo3", item("DJI Osmo Pocket 3 Creator Combo", 235, fb=200), details())
@@ -222,7 +222,7 @@ check7("Series S deal found", (r["variant"], r["verdict"]), ("Series S · 512GB 
 check7("Series X not mistaken for Series S", s.triage(CATS["xboxss"], item("Xbox Series X 1TB", 150, fb=30)), None)
 check7("Xbox One S rejected", s.triage(CATS["xboxss"], item("Xbox One S 1TB console Series S/X controller", 140, fb=30)), None)
 check7("expansion card rejected", s.triage(CATS["xboxss"], item("Seagate expansion card for Xbox Series S 1TB", 120, fb=30)), None)
-check7("offer zone is 12%", s.CONFIG["offer_zone_pct"], 0.12)
+check7("offer zone is 15% (25 Nov: eased from 12% for Christmas prices)", s.CONFIG["offer_zone_pct"], 0.15)
 check7("alerts spread over <= 5 minutes (fits the 8-minute job limit)", s.CONFIG["alert_window_sec"] <= 300, True)
 print(f"round 3: {sum(R7)}/{len(R7)} passed")
 
@@ -248,7 +248,7 @@ for cat, title, price in [
     ("xboxsx", "Xbox Series X Black Console", 300),
     ("xboxsx", "Microsoft Xbox Series X 1TB Black", 300),
     ("ps5", "Sony PlayStation 5 Slim Disc Console boxed", 330),
-    ("switch2", "Nintendo Switch 2 Console Black w/ Blue/Red Joy-Cons", 255),
+    ("switch2", "Nintendo Switch 2 Console Black w/ Blue/Red Joy-Cons", 245),
     ("xboxss", "Xbox Series S 512GB with controller", 150),
 ]:
     check8(f"kept: {title[:45]}", s.triage(CATS[cat], item(title, price, fb=300)) is not None, True)
@@ -429,7 +429,7 @@ def _pricey(url, **k):
     return _R(200, {"candidates": [{"content": {"parts": [{"text": _json.dumps([{"i": 0, "v": "yes", "m": "PS5 Slim Digital", "r": "ok"}])}]}}]})
 s.requests.post = _pricey
 s.SOFT.clear()
-s.triage(CATS["ps5"], item("PS5 Slim missing box", 400, 0, fb=200))
+s.triage(CATS["ps5"], item("PS5 Slim missing box", 480, 0, fb=200))   # 25 Nov: Slim Digital target £449.70
 fresh4 = []
 rej4 = s.screen_soft({}, set(), fresh4)
 check15("genuine but over that model's target -> rejected by the maths", (fresh4, rej4[0]["ai_reason"] if rej4 else None), ([], "genuine but too pricey"))
@@ -488,10 +488,10 @@ def check18(name, got, want):
 _on = sorted(x["id"] for x in s.CONFIG["categories"] if x.get("enabled"))
 check18("on: PS5 Pro, Quest 3, Xbox Series X + S, standard PS5 (offers), Switch 2 + Steam Deck (19 Nov, via the console sweep)", _on, ["ps5", "ps5pro", "quest3", "steamdeck", "switch2", "xboxss", "xboxsx"])
 _xb = CATS["xboxsx"]
-check18("Xbox disc target clears £90 at a typical sale", s.cat_target(_xb, _xb["models"][1]), 380.32)   # 18 Nov prices (typical £499); was 361.7
+check18("Xbox disc target clears £60 at a typical sale", s.cat_target(_xb, _xb["models"][1]), 494.6)   # 25 Nov prices (typical £585, min £60); was 380.32
 r = run("xboxsx", item("Xbox Series X 1TB console with controller", 340, fb=200), details())
-check18("Xbox deal needs £90 and clears it", (r["required_profit"], r["safe_profit"] >= 90), (90, True))
-check18("Xbox £1 over target: no offer alert in #deals (goes to #send-an-offer lane)", s.for_deals(run("xboxsx", {**item("Xbox Series X 1TB console with controller", 370, fb=200), "buyingOptions": ["FIXED_PRICE", "BEST_OFFER"]}, details()) or {}), False)
+check18("Xbox deal needs £75 (price band) and clears the £60 floor", (r["required_profit"], r["safe_profit"] >= 60), (75, True))
+check18("Xbox £1 over target: no offer alert in #deals (goes to #send-an-offer lane)", s.for_deals(run("xboxsx", {**item("Xbox Series X 1TB console with controller", 482, fb=200), "buyingOptions": ["FIXED_PRICE", "BEST_OFFER"]}, details()) or {}), False)
 d = details(); d["description"] = "Selling my Xbox Series X. Console only, no controller included, sorry."
 check18("description says no controller -> rejected", run("xboxsx", item("Xbox Series X 1TB console", 330, fb=200), d), None)
 d = details(); d["description"] = "Console only used a few times, comes with controller and leads."
@@ -674,7 +674,7 @@ def check24(name, got, want):
 _xb, _p5 = CATS["xboxsx"], CATS["ps5"]
 _xdisc = _xb["models"][1]
 _ot = s.offer_target(_xb, _xdisc)
-check24("Xbox disc offer target leaves £30 at a typical sale", round(s.net_sale(_xdisc["typical"]) - _xb["post_out"] - s.PACK - _ot, 2), 30.0)
+check24("Xbox disc offer target leaves at least £30 at a typical sale (capped at the £500 max buy)", round(s.net_sale(_xdisc["typical"]) - _xb["post_out"] - s.PACK - _ot, 2) >= 30, True)
 check24("PS5 Pro has no offer lane", s.offer_target(CATS["ps5pro"], CATS["ps5pro"]["models"][0]), None)
 check24("Quest 3 has no offer lane", s.offer_target(CATS["quest3"], CATS["quest3"]["models"][0]), None)
 _bo = lambda it: {**it, "buyingOptions": ["FIXED_PRICE", "BEST_OFFER"]}
@@ -774,8 +774,8 @@ R27, check27 = _mk(27)
 _pp = CATS["ps5pro"]; _pm = _pp["models"][0]
 check27("ps5pro and xboxsx have a new shop price, quest3 does not",
         (CATS["ps5pro"].get("new_shop_price"), CATS["xboxsx"].get("new_shop_price"), CATS["quest3"].get("new_shop_price")), (790, 670, None))
-check27("under 75% of typical -> flagged", bool(s.too_cheap_to_be_true(_pp, _pm, 640, "used")), True)
-check27("just above 75% of typical, used -> not flagged", s.too_cheap_to_be_true(_pp, _pm, 660, "used"), None)
+check27("under 75% of typical -> flagged", bool(s.too_cheap_to_be_true(_pp, _pm, 680, "used")), True)
+check27("just above 75% of typical, used -> not flagged", s.too_cheap_to_be_true(_pp, _pm, 700, "used"), None)
 check27("listed new and under the shop price -> flagged", bool(s.too_cheap_to_be_true(_pp, _pm, 700, "new")), True)
 check27("'sealed' also counts as new", bool(s.too_cheap_to_be_true(_pp, _pm, 700, "sealed")), True)
 check27("listed new but at/above the shop price -> not flagged", s.too_cheap_to_be_true(_pp, _pm, 790, "brand new"), None)
@@ -839,11 +839,11 @@ check29("profit uses the net resale price",
         r["profit"], round(s.net_sale(_qm["strong"]) - CATS["quest3"]["post_out"] - s.PACK - r["all_in"], 2))
 check29("safe profit uses the net typical price",
         r["safe_profit"], round(s.net_sale(_qm["typical"]) - CATS["quest3"]["post_out"] - s.PACK - r["all_in"], 2))
-check29("buy target is lower than before the fee change (quest 512: was £286)", s.cat_target(CATS["quest3"], _qm) < 286, True)
+check29("buy target follows the 25 Nov prices (quest 512: £287.10)", s.cat_target(CATS["quest3"], _qm), 287.1)
 check29("target still leaves the required profit", all(s.net_sale(m["strong"]) - CATS["quest3"]["post_out"] - s.PACK - s.cat_target(CATS["quest3"], m) >= s.required_profit(s.cat_target(CATS["quest3"], m)) - 0.01 for m in CATS["quest3"]["models"]), True)
 check29("prices_checked set on every enabled category",
         {c["id"]: c.get("prices_checked") for c in s.CONFIG["categories"] if c.get("enabled")},
-        {"quest3": "2026-11-04", "steamdeck": "2026-11-05", "switch2": "2026-11-05", "ps5": "2026-11-18", "xboxsx": "2026-11-18", "xboxss": "2026-11-18", "ps5pro": "2026-11-11"})
+        {k: "2026-11-25" for k in ("quest3", "steamdeck", "switch2", "ps5", "xboxsx", "xboxss", "ps5pro")})
 check29("price_age: label + fresh", s.price_age("2026-11-11", _date(2026, 11, 16)), ("prices checked 11 Nov", False))
 check29("price_age: exactly 14 days is not stale, 15 is", (s.price_age("2026-11-01", _date(2026, 11, 15))[1], s.price_age("2026-11-01", _date(2026, 11, 16))[1]), (False, True))
 check29("price_age: no date -> nothing", s.price_age(None, _date(2026, 11, 16)), ("", False))
@@ -854,9 +854,9 @@ _pos.environ.update(DISCORD_WEBHOOK_URL="https://d/deals")
 _row29 = run("ps5pro", item("Sony PS5 Pro 2TB console with controller", 700, fb=500), details())
 s.discord_alert(_row29)
 _e = _sent29[0]["embeds"][0]
-_d = _dt.now(_tz.utc).date(); _label = f"prices checked 11 Nov"
-check29("card footer shows when prices were checked", _e["footer"]["text"].endswith(" · prices checked 11 Nov"), True)
-_stale = (_d - _date(2026, 11, 11)).days > 14
+_d = _dt.now(_tz.utc).date(); _label = f"prices checked 25 Nov"
+check29("card footer shows when prices were checked", _e["footer"]["text"].endswith(" · prices checked 25 Nov"), True)
+_stale = (_d - _date(2026, 11, 25)).days > 14
 check29("old-price warning appears only when over 14 days old",
         any("over 2 weeks old" in f["value"] for f in _e["fields"] if f["name"].endswith("Notes")), _stale)
 _orig = CATS["ps5pro"]["prices_checked"]; CATS["ps5pro"]["prices_checked"] = "2020-01-01"
@@ -911,15 +911,15 @@ _m1, _m5 = _ss["models"]
 check32("Series S is hot-deals only: no offers lane, no offer zone", (_ss.get("offer_channel"), s.offer_zone(_ss)), (None, 0))
 check32("Series S needs a controller", _ss.get("needs_controller"), True)
 for _m in (_m1, _m5):
-    check32(f"{_m['name']}: target leaves £100+ at a typical sale",
-            round(s.net_sale(_m["typical"]) - _ss["post_out"] - s.PACK - s.cat_target(_ss, _m), 2) >= 100, True)
-check32("512GB target is about £167", s.cat_target(_ss, _m5), 166.7)
-check32("1TB target is about £209", s.cat_target(_ss, _m1), 208.64)
+    check32(f"{_m['name']}: target leaves £80+ at a typical sale",
+            round(s.net_sale(_m["typical"]) - _ss["post_out"] - s.PACK - s.cat_target(_ss, _m), 2) >= 80, True)
+check32("512GB target is about £226 (25 Nov prices)", s.cat_target(_ss, _m5), 225.7)
+check32("1TB target is about £309 (25 Nov prices)", s.cat_target(_ss, _m1), 309.0)
 check32("search window covers the highest target", _ss["price_max"] >= s.cat_target(_ss, _m1), True)
 _c = run("xboxss", item("Xbox Series S 512GB console with controller", 150, ship=5))
 check32("cheap 512GB with controller is a DEAL", bool(_c) and _c["verdict"], "DEAL")
-_c = run("xboxss", item("Xbox Series S 512GB console with controller", 200, ship=5))
-check32("£205 512GB (only ~£60 profit) is not posted", bool(_c) and _c["verdict"] == "DEAL", False)
+_c = run("xboxss", item("Xbox Series S 512GB console with controller", 235, ship=5))
+check32("£240 512GB (over the £225.70 target) is not posted", bool(_c) and _c["verdict"] == "DEAL", False)
 check32("Series X listing is not matched as Series S", bool(run("xboxss", item("Xbox Series X console with controller", 150))) and True, False)
 _n = len(s.SOFT)
 check32("BMW part from eBay's loose search is dropped without the AI", (run("xboxss", item("BMW 3 SERIES Door Mirror N/S 2005-2010 2 Door Convertible", 115)), len(s.SOFT) - _n), (None, 0))

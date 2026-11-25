@@ -1,6 +1,6 @@
 {
   "packaging_cost": 1,
-  "offer_zone_pct": 0.12,
+  "offer_zone_pct": 0.15,
   "max_detail_lookups": 10,
   "unconfirmed_extra_margin": 30,
   "hot_ratio": 1.5,
@@ -39,7 +39,7 @@
       "id": "quest3",
       "label": "Meta Quest 3",
       "enabled": true,
-      "prices_checked": "2026-11-04",
+      "prices_checked": "2026-11-25",
       "weekly_sales": 54,
       "queries": [
         "meta quest 3",
@@ -51,7 +51,7 @@
         "video game"
       ],
       "price_min": 120,
-      "price_max": 321,
+      "price_max": 335,
       "post_out": 8,
       "family": "(meta|oculus).*(quest|vr|headset)|quest.*(vr|headset)",
       "wrong": [
@@ -70,15 +70,15 @@
         {
           "name": "Quest 3 · 512GB",
           "match": "quest ?3\\b(?!s).*512|512.*quest ?3\\b(?!s)",
-          "strong": 345,
-          "typical": 313,
+          "strong": 360,
+          "typical": 320,
           "note": "Ask the seller to confirm it powers on, tracks properly and both controllers work."
         },
         {
           "name": "Quest 3 · 128GB or storage not stated",
           "match": "quest ?3\\b(?!s)",
-          "strong": 285,
-          "typical": 247,
+          "strong": 300,
+          "typical": 270,
           "note": "Ask the seller to confirm it powers on, tracks properly and both controllers work."
         }
       ],
@@ -109,7 +109,7 @@
         "video game"
       ],
       "price_min": 250,
-      "price_max": 499,
+      "price_max": 565,
       "post_out": 9,
       "family": "steam ?deck",
       "wrong": [
@@ -123,14 +123,14 @@
         {
           "name": "Steam Deck OLED 1TB",
           "match": "oled.*1 ?tb|1 ?tb.*oled",
-          "strong": 555,
-          "typical": 540
+          "strong": 620,
+          "typical": 573
         },
         {
           "name": "Steam Deck OLED 512GB",
           "match": "oled",
-          "strong": 530,
-          "typical": 480
+          "strong": 539,
+          "typical": 495
         }
       ],
       "wrong_specs": [
@@ -138,7 +138,7 @@
       ],
       "ai_hint": "Valve Steam Deck OLED handheld, 512GB or 1TB (NOT the LCD model, not 64/256GB).",
       "must_have": "\\bsteam ?deck\\b",
-      "prices_checked": "2026-11-05",
+      "prices_checked": "2026-11-25",
       "must_not": "\\blcd\\b|\\b(64|256) ?gb\\b",
       "must_not_unless": "\\boled\\b"
     },
@@ -591,8 +591,8 @@
         {
           "name": "Switch 2",
           "match": "switch ?2\\b",
-          "strong": 345,
-          "typical": 327,
+          "strong": 338,
+          "typical": 320,
           "note": "New model: check it isn't linked to the seller's account"
         }
       ],
@@ -600,7 +600,7 @@
       "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
       "ai_hint": "Nintendo Switch 2 console (NOT Switch OLED, Lite or the original Switch).",
       "must_have": "\\bswitch\\b",
-      "prices_checked": "2026-11-05",
+      "prices_checked": "2026-11-25",
       "must_not": "\\b(oled|lite)\\b|\\bswitch ?1\\b|\\bv2\\b",
       "must_not_unless": "\\bswitch ?2\\b"
     },
@@ -652,7 +652,7 @@
       "id": "ps5",
       "label": "PlayStation 5",
       "enabled": true,
-      "prices_checked": "2026-11-18",
+      "prices_checked": "2026-11-25",
       "weekly_sales": 350,
       "queries": [
         "ps5 console"
@@ -706,30 +706,30 @@
         {
           "name": "PS5 Slim Digital",
           "match": "slim.*digital|digital.*slim",
-          "strong": 445,
-          "typical": 426
+          "strong": 580,
+          "typical": 517
         },
         {
           "name": "PS5 Slim Disc",
           "match": "slim",
-          "strong": 495,
-          "typical": 466
+          "strong": 620,
+          "typical": 547
         },
         {
           "name": "PS5 Digital (original)",
           "match": "digital",
-          "strong": 450,
-          "typical": 410
+          "strong": 490,
+          "typical": 415
         },
         {
           "name": "PS5 Disc (original)",
           "match": "\\b(ps5|playstation ?5)\\b",
-          "strong": 445,
-          "typical": 425,
+          "strong": 549,
+          "typical": 495,
           "note": "Title doesn't say slim or digital: confirm the model from the photos."
         }
       ],
-      "price_max": 460,
+      "price_max": 565,
       "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
       "ai_hint": "Sony PlayStation 5 console, Slim or original, disc or digital (NOT PS5 Pro, not PS4).",
       "offers_only": true,
@@ -746,7 +746,7 @@
       "id": "xboxsx",
       "label": "Xbox Series X",
       "enabled": true,
-      "prices_checked": "2026-11-18",
+      "prices_checked": "2026-11-25",
       "new_shop_price": 670,
       "weekly_sales": 320,
       "queries": [
@@ -802,22 +802,22 @@
         {
           "name": "Series X Digital",
           "match": "digital",
-          "strong": 460,
-          "typical": 422
+          "strong": 560,
+          "typical": 495
         },
         {
           "name": "Series X (disc)",
           "match": "series ?x",
-          "strong": 545,
-          "typical": 499
+          "strong": 645,
+          "typical": 585
         }
       ],
-      "price_max": 495,
+      "price_max": 580,
       "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
       "ai_hint": "Microsoft Xbox Series X console (NOT Series S, Xbox One or 360). Must include at least one controller.",
       "fast": true,
       "fast_every_min": 2,
-      "min_safe_profit": 90,
+      "min_safe_profit": 60,
       "no_offers": true,
       "needs_controller": true,
       "offer_channel": {
@@ -887,24 +887,24 @@
         {
           "name": "Series S · 1TB",
           "match": "1 ?tb",
-          "strong": 380,
-          "typical": 333
+          "strong": 450,
+          "typical": 415
         },
         {
           "name": "Series S · 512GB or not stated",
           "match": "series ?s\\b",
-          "strong": 320,
-          "typical": 290
+          "strong": 364,
+          "typical": 330
         }
       ],
-      "price_max": 215,
+      "price_max": 315,
       "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b",
       "ai_hint": "Microsoft Xbox Series S console (NOT Series X, Xbox One or 360). Must include at least one controller.",
-      "prices_checked": "2026-11-18",
+      "prices_checked": "2026-11-25",
       "new_shop_price": 430,
       "fast": true,
       "fast_every_min": 3,
-      "min_safe_profit": 100,
+      "min_safe_profit": 80,
       "no_offers": true,
       "needs_controller": true,
       "must_have": "\\bxbox\\b",
@@ -915,7 +915,7 @@
       "id": "ps5pro",
       "label": "PS5 Pro (high value)",
       "enabled": true,
-      "prices_checked": "2026-11-11",
+      "prices_checked": "2026-11-25",
       "new_shop_price": 790,
       "weekly_sales": 56,
       "queries": [
@@ -927,7 +927,7 @@
       ],
       "price_min": 500,
       "post_out": 15,
-      "max_buy": 770,
+      "max_buy": 780,
       "family": "\\b(ps5|playstation ?5) ?pro\\b",
       "require_any": "\\bconsoles?\\b|\\bbundle\\b|\\bboxed\\b|\\bdock\\b|\\b(1|2) ?tb\\b|\\b(256|512|825) ?gb\\b|with (\\d )?controllers?\\b|\\bjoy ?cons?\\b|\\bslim\\b|\\b(digital|disc) edition\\b|\\bpro\\b.*\\b2 ?tb\\b",
       "wrong": [
@@ -974,8 +974,8 @@
         {
           "name": "PS5 Pro 2TB",
           "match": "\\bpro\\b",
-          "strong": 920,
-          "typical": 870,
+          "strong": 990,
+          "typical": 925,
           "note": "High-value item: insure postage, check serial, power-on video from the seller."
         }
       ],
