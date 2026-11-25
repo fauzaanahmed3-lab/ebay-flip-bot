@@ -70,7 +70,7 @@ check("brand-new seller (0 feedback) rejected", s.triage(CATS["sony"], item("Son
 check("seller under 97% rejected", s.triage(CATS["sony"], item("Sony WH-1000XM6", 150, fb=400, pct=95.0)), None)
 r = run("sony", item("Sony WH-1000XM6", 150, fb=3), details(photos=1, returns=False))
 check("risky listing gets notes + CHECK rating",
-      (r["rating"], "little feedback" in r["notes"], "photo" in r["notes"], "No returns" in r["notes"]), ("CHECK", True, True, True))
+      (r["rating"], "LOW FB (3)" in r["notes"], "1 PIC" in r["notes"], "No returns" in r["notes"]), ("CHECK", True, True, False))   # 25 Nov: "no returns" dropped
 check("damage in condition notes rejected", run("sony", item("Sony WH-1000XM6", 150), details(cond="small crack on hinge, works fine")), None)
 
 phone = {"id": "p", "phone": True, "post_out": 5, "family": "oneplus", "wrong": [], "wrong_specs": [], "price_min": 1,
@@ -101,7 +101,7 @@ check2("OnePlus 15 untagged = 256 + IMEI note", (r["variant"], "IMEI" in r["note
 check2("OnePlus 13R rejected", s.triage(CATS["oneplus"], item("OnePlus 13R 256GB", 300, fb=200)), None)
 check2("phone from 20-feedback seller rejected", run("oneplus", item("OnePlus 15 256GB", 450, fb=20), details()), None)
 it = item("Sony WH-1000XM6 sealed", 160); it["condition"] = "New"
-check2("unused item gets a note", "Listed as 'New'" in run("sony", it, details())["notes"], True)
+check2("unused item gets a tag", "NEW/OPEN BOX" in run("sony", it, details())["notes"], True)
 print(f"review fixes: {sum(R2)}/{len(R2)} passed")
 
 # ---- second review ----
@@ -121,7 +121,7 @@ check3("vague Galaxy that is really an S25+ is rejected",
 check3("Quest headset only (no controllers) rejected", s.triage(CATS["quest3"], item("Meta Quest 3 128GB headset only", 150)), None)
 it = item("Sony WH-1000XM6", 150); it["shippingOptions"] = []
 r = run("sony", it, details())
-check3("no postage info = note + not HOT", ("Postage not stated" in r["notes"], r["rating"] != "HOT"), (True, True))
+check3("no postage info = COLLECTION ONLY + not HOT", (r["delivery"], "COLLECTION ONLY" in s.delivery_badge(r), r["rating"] != "HOT"), ("collection", True, True))
 print(f"second review: {sum(R3)}/{len(R3)} passed")
 
 # ---- third review: real false positives from the first live run (5 Nov) ----
@@ -366,10 +366,10 @@ check14("usage day follows Pacific time", str(s.usage_day(_n)), "2026-11-08")
 check14("08:30 UK still counts as the new Pacific day", str(s.usage_day(_dt(2026, 11, 9, 8, 30, tzinfo=_tz.utc))), "2026-11-09")
 check14("bar 250/500 is half full", s.bar(250, 500), "▰" * 6 + "▱" * 6)
 check14("bar never overflows", s.bar(900, 500), "▰" * 12)
-txt = s.render_usage({"gemini-3.5-flash-lite": (12, 0), "ebay": (2101, 0), "gemini-2.5-flash-lite": (20, 3)}, {"gemini-3.5-flash-lite": 80, "ebay": 20000}, _n)
+txt = s.render_usage({"gemini-3.5-flash-lite": (12, 0), "ebay": (2101, 0), "gemini-3.1-flash-lite": (500, 3)}, {"gemini-3.5-flash-lite": 80, "ebay": 20000}, _n)
 check14("shows used / limit / left", "12 / 500 · 488 left" in txt, True)
 check14("shows limit hits", "hit limit 3x" in txt, True)
-check14("AI checks left adds the free models", "AI checks left today: ~988" in txt, True)
+check14("AI checks left adds the free models", "AI checks left today: ~488" in txt, True)
 check14("reset shown in UK time", "Resets 08:00 UK (in 8h 20m)" in txt, True)
 check14("counts AI attempts, not 429s", (s.USAGE.get("gemini-3.1-flash-lite", 0) >= 1, s.LIMITED.get("gemini-3.5-flash-lite", 0) >= 1), (True, True))
 print(f"usage bar: {sum(R14)}/{len(R14)} passed")
@@ -407,7 +407,7 @@ s.triage(CATS["ps5"], item("PS5 slim controller replacement", 380, 0, fb=200))
 s.triage(CATS["ps5"], item("PlayStation 5 slim damaged box", 380, 0, fb=200))
 got = s.ai_screen(list(s.SOFT))
 ids = [c["item_id"] for _, c in s.SOFT]
-check15("screen falls back to 3.1 when 3.5 is out", got[ids[0]][3], "gemini-3.1-flash-lite")
+check15("screen uses 3.1 (3.5 kept for photo checks first)", got[ids[0]][3], "gemini-3.1-flash-lite")
 check15("yes + model parsed", got[ids[0]][:2], ("yes", "PS5 Slim Disc"))
 check15("no parsed", got[ids[1]][0], "no")
 check15("invented model name is ignored", got[ids[2]][:2], ("yes", ""))
@@ -861,7 +861,7 @@ check29("old-price warning appears only when over 14 days old",
         any("over 2 weeks old" in f["value"] for f in _e["fields"] if f["name"].endswith("Notes")), _stale)
 _orig = CATS["ps5pro"]["prices_checked"]; CATS["ps5pro"]["prices_checked"] = "2020-01-01"
 s.discord_alert(_row29)
-check29("a very old price date adds the warning note", any("⚠️ Resale prices are over 2 weeks old; double-check sold listings." in f["value"] for f in _sent29[1]["embeds"][0]["fields"]), True)
+check29("a very old price date adds the warning note", any("⚠️ PRICES 2+ WEEKS OLD" in f["value"] for f in _sent29[1]["embeds"][0]["fields"]), True)
 CATS["ps5pro"]["prices_checked"] = _orig
 s.requests.post = _k29[0]; _pos.environ.clear(); _pos.environ.update(_k29[1])
 print(f"B5 net profit + price dates: {sum(R29)}/{len(R29)} passed")
@@ -871,7 +871,7 @@ R30, check30 = _mk(30)
 check30("business fee settings exist", (s.CONFIG["business_fee_pct"], s.CONFIG["business_fee_fixed"]), (0.075, 0.30))
 r = run("quest3", item("Meta Quest 3 512GB with controllers", 250, fb=250), details())
 _want = round(r["profit"] + (_qm["strong"] - s.net_sale(_qm["strong"])) - (_qm["strong"] * 0.075 + 0.30), 2)   # business: no buyer fee, minus eBay fee
-check30("note shows business profit (approx.)", f"If you sell as a business: about £{_want:.0f} profit (fees approx.)" in r["notes"], True)
+check30("tag shows business profit (approx.)", f"BIZ ~£{_want:.0f}" in r["notes"], True)
 check30("business profit is lower than normal profit", _want < r["profit"], True)
 check30("no new database column: it only lives in the notes", "business_profit" in r, False)
 print(f"B6 business profit line: {sum(R30)}/{len(R30)} passed")
@@ -980,3 +980,76 @@ _n = len(s.SOFT)
 _c = run("ps5", item("PS5 Slim Disc console with controller + PS4 games", 250, ship=5))
 check33("PS5 bundle that mentions PS4 games is not dropped by the older-model rule", bool(_c) or len(s.SOFT) > _n, True)
 print(f"Category sweep: {sum(R33)}/{len(R33)} passed")
+
+
+# --- 34. 25 Nov: description check, delivery/location badge, short notes, shared AI caller ---
+R34 = []
+def check34(name, got, want):
+    ok = got == want
+    R34.append(ok)
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"   got={got!r} want={want!r}"))
+for _t, _want in {
+    "PS5 is dead, selling for parts": True, "Console won't turn on, otherwise mint": True,
+    "Turns on but no display output": True, "Doesn't power on": True, "HDMI port is broken": True,
+    "Stopped working last week": True, "Spares or repairs only": True,
+    "Works perfectly. If the item is faulty please contact us": False, "Fully working, not faulty, never been banned": False,
+    "Please do not turn off during updates": False, "No display issues, comes with 2 controllers": False,
+    "Sold as seen, fully working": False, "Returns accepted if faulty": False,
+}.items():
+    check34(f"description check: {_t!r}", bool(s.dead_in({"description": f"<p>{_t}</p>"})), _want)
+_c = s.triage(CATS["xboxsx"], item("Xbox Series X 1TB console with controller", 250))
+if _c:
+    _det = details(); _det["description"] = "<b>Great console</b> but it is dead, no power at all"
+    check34("dead in description -> rejected after lookup", s.score(CATS["xboxsx"], _c, _det), None)
+    check34("reason saved for #bot-logs", "dead" in s.REJECT_WHY.get(_c["item_id"], ""), True)
+_it = item("Sony WH-1000XM6", 150); _it["itemLocation"] = {"country": "GB", "postalCode": "LS6****", "city": "leeds"}
+_r = run("sony", _it, {**details(), "itemLocation": {"city": "Leeds", "postalCode": "LS6 2**", "country": "GB"}})
+check34("location from listing details", _r["location"], "Leeds · LS6")
+check34("free postage badge", s.delivery_badge({"delivery": "free", "location": "Leeds · LS6"}), "🚚 **FREE P&P** · 📍 Leeds · LS6")
+check34("paid postage badge", s.delivery_badge({"delivery": "£4.99", "location": None}), "🚚 **P&P £4.99** (in the all-in price)")
+check34("postage only in details badge", s.delivery_badge({"delivery": "£7.50 extra"}).startswith("🚚 **P&P £7.50** (add it"), True)
+check34("collection badge", s.delivery_badge({"delivery": "collection", "location": "Leeds"}).startswith("⚠️ **COLLECTION ONLY**"), True)
+check34("no buyer-fee line any more", "buyer protection fee" in (_r["notes"] or ""), False)
+check34("tags are one line", sum(1 for l in (_r["notes"] or "").split("\n") if l.startswith("🏷️")), 1)
+check34("delivery + location are saved columns", ("delivery" in _r, "location" in _r, "item_location" in _r), (True, True, False))
+# card puts the badge at the top
+_sent34 = []
+_op = s.post_discord
+s.post_discord = lambda payload, daily=False, url=None: _sent34.append(payload) or "1"
+s.discord_alert({**_r, "rating": "SOLID", "verdict": "DEAL", "lane": "EXACT", "delivery": "collection", "location": "Leeds · LS6"})
+s.post_discord = _op
+check34("card description = COLLECTION ONLY badge", _sent34[0]["embeds"][0].get("description", "").startswith("⚠️ **COLLECTION ONLY**"), True)
+# shared AI caller: Gemma gets no JSON mode; a 'per day' 429 marks the model used up and it is skipped next time
+check34("gemma: no JSON mode", "responseMimeType" in s.ai_body("gemma-4-26b-a4b-it", [{"text": "x"}], 10)["generationConfig"], False)
+check34("gemini: JSON mode", s.ai_body("gemini-3.5-flash-lite", [{"text": "x"}], 10)["generationConfig"]["responseMimeType"], "application/json")
+class _R34:
+    def __init__(self, code, text="", j=None): self.status_code = code; self.ok = code == 200; self.text = text; self._j = j
+    def json(self): return self._j
+_tried34 = []
+def _p34(url, **k):
+    m = url.split("/models/")[1].split(":")[0]; _tried34.append(m)
+    if m == "a": return _R34(429, "Quota exceeded: GenerateRequestsPerDayPerProjectPerModel-FreeTier")
+    if m == "b": return _R34(503, "high demand")
+    return _R34(200, j={"candidates": [{"content": {"parts": [{"text": "```json\n{\"ok\": 1}\n```"}]}}]})
+_old34 = (s.requests.post, s.DRY_RUN, os.environ.get("GEMINI_API_KEY"), s.time.sleep)
+s.requests.post = _p34; s.DRY_RUN = False; os.environ["GEMINI_API_KEY"] = "k"; s.time.sleep = lambda x: None
+s._EXH_LOADED[0] = True; s.EXHAUSTED.clear()
+_txt, _m = s.ai_call(["a", "b", "c"], [{"text": "x"}], 10)
+check34("falls through used-up + busy models", (_m, _txt.strip()), ("c", '{"ok": 1}'))
+check34("used-up model remembered", "a" in s.EXHAUSTED, True)
+_tried34.clear(); s.ai_call(["a", "c"], [{"text": "x"}], 10)
+check34("used-up model skipped next call", _tried34, ["c"])
+s.requests.post, s.DRY_RUN = _old34[0], _old34[1]; s.time.sleep = _old34[3]
+if _old34[2] is None: os.environ.pop("GEMINI_API_KEY", None)
+else: os.environ["GEMINI_API_KEY"] = _old34[2]
+s.EXHAUSTED.clear()
+check34("screens use 3.1 first (photo checks use 3.5 first)", (s.CONFIG["ai_screen_models"][0], s.CONFIG["ai_models"][0]), ("gemini-3.1-flash-lite", "gemini-3.5-flash-lite"))
+# screen pauses when only the reserve is left
+_keep_left = s.ai_allowance_left
+s.ai_allowance_left = lambda: 100
+s.SOFT.clear(); s.LOG.clear()
+s.SOFT.append((CATS["ps5"], {"item_id": "soft1", "all_in": 300, "title": "x", "soft_reason": "r", "best_offer": False}))
+check34("screen paused when only the reserve is left", (s.screen_soft({}, set(), []), any("AI screen paused" in l for l in s.LOG)), ([], True))
+s.ai_allowance_left = _keep_left; s.SOFT.clear()
+check34("2.5 Flash-Lite (shut down) removed", "gemini-2.5-flash-lite" in s.CONFIG["ai_models"], False)
+print(f"25 Nov description + card + AI: {sum(R34)}/{len(R34)} passed")

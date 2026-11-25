@@ -44,6 +44,7 @@ def _no(cat_id: str, reason: str):
 SCREENED_IN: dict[str, str] = {}     # item_id -> category it was AI-screened out of
 AI_OK: dict[str, str] = {}           # item_id -> model: AI-approved listings still waiting for a detail lookup
 SOFT: list[tuple[dict, dict]] = []   # (category, candidate) dropped only by word filters: sent to the AI screen
+REJECT_WHY: dict[str, str] = {}      # item_id -> why score() rejected it after reading the listing (for #bot-logs)
 
 
 def _soft(cat: dict, cand: dict, reason: str):
@@ -90,6 +91,41 @@ DAMAGE = re.compile(r"(?<!no )(?<!without )(?<!not )\b(crack|broken|faulty|not w
 def damage_in(text: str) -> bool:
     """Damage words in the seller's condition notes, ignoring 'no cracks' / 'without drift' etc."""
     return bool(DAMAGE.search(norm(text)))
+
+
+# Strong "this unit is broken" phrases in the full description (23 Nov: a PS5 card was posted whose description said
+# it was dead, while the AI check was down). Only clear statements, so shop boilerplate like "if faulty, contact us"
+# or "fully working, not faulty" doesn't trip it.
+DEAD = re.compile(
+    r"\b(is|it'?s|its|console is|unit is|headset is|deck is|totally|completely|now) (dead|faulty|broken)\b"
+    r"|\bstopped working\b|\bdead (console|unit|ps5|xbox|switch|headset|deck)\b"
+    r"|\b(won'?t|wont|doesn'?t|does not|will not|can'?t|cannot|no longer) (turn|switch|power|boot)(s|ing)? ?(on|up)\b"
+    r"|\b(won'?t|wont|doesn'?t|does not|will not) (start|boot|load)\b|\bno power\b|\bnot powering( on| up)?\b"
+    r"|\bblue light of death\b|\bblod\b|\bno (display|picture|signal|video)( output)?\b(?! (issues?|problems?|faults?))"
+    r"|\bhdmi (port )?(is )?(broken|damaged|faulty|not working)\b"
+    r"|\b(disc|disk) drive (is )?(not working|broken|faulty|doesn'?t work)\b|\bsold as (faulty|spares)\b"
+    r"|\bfor (spares|parts)( (or|and|/) repairs?)?\b|\bspares (or|and|/) repairs?\b|\b(console|account) (is )?banned\b"
+    r"|\bneeds (a )?(new )?(repair|fixing|motherboard|apu|hdmi port)\b")
+# shop/returns boilerplate ("if the item is faulty, contact us") and denials ("not faulty", "never been banned")
+DEAD_CONTEXT_OK = re.compile(r"(\bif\b|in case|should|\bnot\b|\bnever\b|\bno\b|\bisn'?t\b|return|refund|contact)[^.!|]{0,30}$")
+
+
+def listing_text(details: dict) -> str:
+    """Seller notes + short description + full description, as plain text (what a buyer would read)."""
+    d = details or {}
+    parts = [d.get("conditionDescription") or "", _strip_html(d.get("shortDescription") or ""),
+             _strip_html(d.get("description") or "")[:6000]]
+    return " | ".join(p for p in parts if p)
+
+
+def dead_in(details: dict) -> str | None:
+    """The phrase that says the unit is broken, or None. Checked on every looked-up listing, AI or not."""
+    text = norm(listing_text(details)).replace("\u2019", "'")
+    for m in DEAD.finditer(text):
+        if DEAD_CONTEXT_OK.search(text[max(0, m.start() - 40):m.start()]):
+            continue
+        return m.group(0)
+    return None
 
 
 # ---------- profit rules ----------
@@ -215,6 +251,7 @@ def triage(cat: dict, item: dict) -> dict | None:
         "seller": None, "seller_feedback": fb, "seller_pct": pct,
         "listed_at": item.get("itemCreationDate"),
         "lane": None, "model": None, "condition": item.get("condition"),
+        "item_location": item.get("itemLocation") or {},
     }
 
     if cat.get("must_have") and not re.search(cat["must_have"], t):       # e.g. no "xbox" anywhere: eBay's loose
@@ -249,7 +286,7 @@ def triage(cat: dict, item: dict) -> dict | None:
 
 # ---------- stage 5: confirm with item details, then score ----------
 
-DROP = ("best_offer", "model", "condition", "ship_known", "fee", "soft_reason", "rescued")          # working fields, not stored
+DROP = ("best_offer", "model", "condition", "ship_known", "fee", "soft_reason", "rescued", "item_location")          # working fields, not stored
 
 def too_cheap_to_be_true(cat: dict, model: dict, all_in: float, condition: str) -> str | None:
     """B3: a price so low it smells like a scam. True if under 75% of the model's typical resale price, or if it is
@@ -263,6 +300,38 @@ def too_cheap_to_be_true(cat: dict, model: dict, all_in: float, condition: str) 
     return None
 
 
+def delivery_and_location(cand: dict, details: dict | None) -> tuple[str, str | None]:
+    """('free' | '£4.99' | 'collection', 'Leeds · LS6') for the top line of the card.
+    Collection = no postage option on the listing (search result and full details)."""
+    d = details or {}
+    ship_known, ship, extra = cand.get("ship_known", True), float(cand.get("shipping") or 0), False
+    if not ship_known:
+        opts = d.get("shippingOptions") or []
+        costs = [o.get("shippingCost") for o in opts if o.get("shippingCost")]
+        if costs:                                      # only the full details show postage: not in the all-in price
+            ship_known, ship, extra = True, float(costs[0].get("value") or 0), True
+    delivery = "collection" if not ship_known else ("free" if ship == 0 else f"£{ship:.2f}" + (" extra" if extra else ""))
+    loc = d.get("itemLocation") or cand.get("item_location") or {}
+    town = (loc.get("city") or "").strip().title()
+    pc = re.sub(r"\*+$", "", (loc.get("postalCode") or "").strip()).upper()
+    pc = pc.split()[0] if pc else ""
+    where = " · ".join(x for x in (town, pc) if x) or None
+    return delivery, where
+
+
+def delivery_badge(row: dict) -> str:
+    """Bold first line of a card: how you get it and where it is."""
+    dl, loc = row.get("delivery"), row.get("location")
+    where = f"📍 {loc}" if loc else ""
+    if dl == "collection":
+        return f"⚠️ **COLLECTION ONLY** (no postage on the listing){' · ' + where if where else ''}"
+    if dl:
+        head = ("🚚 **FREE P&P**" if dl == "free" else f"🚚 **P&P {dl[:-6]}** (add it to the price)" if dl.endswith(" extra")
+                else f"🚚 **P&P {dl}** (in the all-in price)")
+        return head + (f" · {where}" if where else "")
+    return where
+
+
 def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
     notes = []
     aspects = ""
@@ -274,6 +343,10 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
         returns_ok = (details.get("returnTerms") or {}).get("returnsAccepted")
         if any_match(cat.get("wrong_specs", []), aspects) or damage_in(details.get("conditionDescription", "")):
             return None                                       # specifics reveal wrong model / damage
+        dead = dead_in(details)
+        if dead:
+            REJECT_WHY[cand["item_id"]] = f"description says \"{dead}\""
+            return None                                       # the description says it's broken (title looked fine)
         if cat.get("needs_controller"):
             blob = norm(" ".join([details.get("conditionDescription") or "", _strip_html(details.get("shortDescription") or ""),
                                   _strip_html(details.get("description") or "")[:4000]]))
@@ -288,13 +361,13 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
         model = model_for(cat, aspects) if aspects else None
         if model:
             lane = "GEM"
-            notes.append("Vague title, but the listing details confirm the model. Fewer buyers will spot this.")
+            notes.append("💎 Vague title, but the listing details confirm the model (fewer buyers will spot it).")
         elif re.search(r"\bmodel\b", aspects):
             return None                                   # specifics name a model, and it isn't one we want
         else:
             lane = "UNCONFIRMED"
             model = min(cat["models"], key=lambda m: m["strong"])          # price as the cheapest model
-            notes.append("Model not confirmed. Check the photos before buying.")
+            notes.append("❓ Model not confirmed: check the photos before buying.")
 
     target = cat_target(cat, model)
     all_in, ship = cand["all_in"], cand["shipping"]
@@ -327,67 +400,64 @@ def score(cat: dict, cand: dict, details: dict | None) -> dict | None:
     if offer_lane:
         need = cat["offer_channel"]["min_safe_profit"]
 
-    # ---- plain-English notes ----
+    # ---- notes: short CAPS tags for small facts (one line), full sentences only for things that need action ----
+    # (25 Nov, testers' feedback: notes were too long. Dropped: the buyer-fee line (it's already in the all-in price),
+    # "No returns accepted" and "Listed above target, offer £x" (the offer is already shown under the price).)
+    tags = []
     fb, pct = cand["seller_feedback"], cand["seller_pct"]
     trusted = fb >= CONFIG["trusted_min_feedback"] and pct >= CONFIG["trusted_min_pct"]
     if fb < 10:
-        notes.append(f"Seller has very little feedback ({fb}). Higher risk.")
+        tags.append(f"LOW FB ({fb})")
     elif pct < CONFIG["trusted_min_pct"]:
-        notes.append(f"Seller feedback is only {pct}%.")
-    if cand.get("fee"):
-        notes.append(f"All-in includes ~£{cand['fee']:.0f} eBay buyer protection fee (private seller).")
+        tags.append(f"FB {pct:g}%")
     if photos is not None and photos < 3:
-        notes.append(f"Only {photos} photo(s). Ask for more before buying.")
-    if not cand.get("ship_known", True):
-        notes.append("Postage not stated (maybe collection only). Check before counting on this price.")
-    if returns_ok is False:
-        notes.append("No returns accepted.")
+        tags.append(f"{photos} PIC{'S' if photos != 1 else ''}")
     cond = (cand.get("condition") or "").lower()
+    if cond.startswith(("new", "open", "brand new")):
+        tags.append("NEW/OPEN BOX")
+    if cat.get("phone"):
+        tags.append("IMEI CHECK")
+    if details is None:
+        tags.append("DETAILS NOT CHECKED")
     too_cheap = too_cheap_to_be_true(cat, model, all_in, cond)
     if too_cheap:
-        notes.append(f"⚠️ Too cheap to be true? {too_cheap} Check for a scam, a fake or a hijacked seller account before paying.")
-    if cond.startswith(("new", "open", "brand new")):
-        notes.append(f"Listed as '{cand['condition']}'. Unused stock at a used price is a strong sign, but confirm it's genuine.")
+        notes.append(f"⚠️ Too cheap to be true? {too_cheap} Check for a scam or a hijacked account before paying.")
     if model.get("note"):
         notes.append(model["note"])
-    if cat.get("phone"):
-        notes.append("Phone: run a free IMEI check (blacklist and network lock) before paying.")
-    if details is None:
-        notes.append("Details not checked this run (lookup limit reached).")
     if offer_lane and suggested_offer:
-        notes.append(f"Send an offer of £{suggested_offer}: that leaves ~£{need} profit at an average resale price.")
+        notes.append(f"Offer £{suggested_offer} → ~£{need} profit at an average price.")
     elif offer_lane:
-        notes.append(f"Already ~£{need}+ profit at an average price at the asking price; a lower offer is a bonus.")
-    elif verdict == "OFFER":
-        notes.append(f"Listed above target. Offer £{suggested_offer}; walk away if they won't go below target.")
+        notes.append(f"~£{need}+ profit at an average price as listed; a lower offer is a bonus.")
 
     # B6: rough profit if we sold as a business instead (approximate eBay UK business final value fee)
     # A business seller's buyer pays no buyer protection fee, so the business gets the full price, minus eBay's fee.
     strong_gross = model["strong"]
     business_profit = round(profit + (strong_gross - net_sale(strong_gross))
                             - (strong_gross * CONFIG.get("business_fee_pct", 0.075) + CONFIG.get("business_fee_fixed", 0.30)), 2)
-    notes.append(f"If you sell as a business: about £{business_profit:.0f} profit (fees approx.)")
+    tags.append(f"BIZ ~£{business_profit:.0f}")
 
     # ---- rating ----
     fast_seller = (cat.get("weekly_sales") or 0) >= 10
     if (lane in ("EXACT", "GEM") and trusted and verdict == "DEAL" and cand.get("ship_known", True)
             and profit >= need * CONFIG["hot_ratio"] and safe_profit >= need):
         rating = "HOT"
-        notes.insert(0, "Profitable even at an average sale price, trusted seller"
-                     + (", fast-selling model." if fast_seller else "."))
+        notes.insert(0, "Profitable even at an average price · trusted seller" + (" · fast seller." if fast_seller else "."))
     elif lane == "UNCONFIRMED" or not trusted or safe_profit < need / 2:
         rating = "CHECK"
         if safe_profit < need / 2 and trusted and lane != "UNCONFIRMED":
-            notes.append(f"Thin margin unless it sells well: ~£{safe_profit:.0f} at an average price.")
+            tags.append(f"THIN MARGIN (~£{safe_profit:.0f} avg)")
     else:
         rating = "SOLID"
     if too_cheap and rating == "HOT":
         rating = "CHECK"                                   # a price this low is never a "buy fast" until a human checks it
+    if tags:
+        notes.append("🏷️ " + " · ".join(tags))
 
+    delivery, location = delivery_and_location(cand, details)
     return {**{k: v for k, v in cand.items() if k not in DROP},
             "safe_profit": safe_profit, "variant": model["name"], "lane": lane, "verdict": verdict, "rating": rating,
             "buy_target": target, "expected_sell": model["strong"], "profit": profit,
-            "required_profit": need, "suggested_offer": suggested_offer,
+            "required_profit": need, "suggested_offer": suggested_offer, "delivery": delivery, "location": location,
             "notes": "\n".join(notes) or None, "flags": None}
 
 
@@ -622,11 +692,115 @@ def track_outcomes(token: str) -> None:
                        params={"item_id": f"eq.{row['item_id']}"}, json=patch, timeout=20)
 
 
+# ---------- AI calls (shared) ----------
+# Free-tier daily allowances run out (25 Nov: both Flash-Lite models were used up by lunchtime, so the photo check
+# was skipped and a "dead" PS5 got posted). So: models whose DAILY allowance is used up are remembered in
+# bot_state 'ai_exhausted' (shared with the deal engine) and skipped until Google's reset; busy models (503) get
+# one more try, and the bulk title screen stops once only `ai_reserve_for_checks` calls are left today, so the
+# photo + description check on real alerts (and the deal engine) always has allowance. (Gemma 4 was tried on 25 Nov:
+# 38 s per answer with its reasoning printed in the reply, too slow for a bot that runs every minute.)
+EXHAUSTED: set[str] = set()
+_EXH_LOADED = [False]
+
+
+def _load_exhausted() -> None:
+    if _EXH_LOADED[0] or DRY_RUN or not os.getenv("SUPABASE_URL"):
+        return
+    _EXH_LOADED[0] = True
+    try:
+        st = requests.get(f"{os.environ['SUPABASE_URL']}/rest/v1/bot_state", headers=sb_headers(), timeout=10,
+                          params={"select": "value", "key": "eq.ai_exhausted"}).json()
+        v = json.loads(st[0]["value"]) if st else {}
+        if v.get("day") == usage_day().isoformat():
+            EXHAUSTED.update(v.get("models") or [])
+    except (requests.RequestException, ValueError, KeyError, IndexError, TypeError):
+        pass
+
+
+def _save_exhausted(model: str) -> None:
+    EXHAUSTED.add(model)
+    LOG.append(f"🤖 {model}: free daily allowance used up, skipped until 08:00 UK")
+    if DRY_RUN or not os.getenv("SUPABASE_URL"):
+        return
+    try:
+        requests.post(f"{os.environ['SUPABASE_URL']}/rest/v1/bot_state", timeout=10,
+                      headers={**sb_headers(), "Prefer": "resolution=merge-duplicates"},
+                      json={"key": "ai_exhausted", "value": json.dumps({"day": usage_day().isoformat(), "models": sorted(EXHAUSTED)})})
+    except requests.RequestException:
+        pass
+
+
+def ai_allowance_left() -> int | None:
+    """Free AI calls left today across the models in usage_limits (both bots count into api_usage). None if unknown."""
+    limits = {k: v for k, v in CONFIG.get("usage_limits", {}).items() if k != "ebay"}
+    if DRY_RUN or not os.getenv("SUPABASE_URL") or not limits:
+        return None
+    try:
+        rows = requests.get(f"{os.environ['SUPABASE_URL']}/rest/v1/api_usage", headers=sb_headers(), timeout=10,
+                            params={"select": "name,calls", "day": f"eq.{usage_day().isoformat()}"}).json()
+        used = {r["name"]: int(r["calls"] or 0) for r in rows}
+    except (requests.RequestException, ValueError, KeyError, TypeError):
+        return None
+    _load_exhausted()
+    return sum(0 if m in EXHAUSTED else max(0, lim - used.get(m, 0) - USAGE.get(m, 0)) for m, lim in limits.items())
+
+
+def ai_body(model: str, parts: list, max_tokens: int) -> dict:
+    """Gemma models don't support JSON mode, so they get plain text (the answer is still parsed as JSON)."""
+    cfg = {"temperature": 0, "maxOutputTokens": max_tokens}
+    if not model.startswith("gemma"):
+        cfg["responseMimeType"] = "application/json"
+    return {"contents": [{"parts": parts}], "generationConfig": cfg}
+
+
+def ai_call(models: list[str], parts: list, max_tokens: int, timeout: int = 15) -> tuple[str | None, str]:
+    """Try each model in order. Returns (answer text, model) or (None, "")."""
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key or DRY_RUN:
+        return None, ""
+    _load_exhausted()
+    busy = []
+    for attempt in (0, 1):
+        todo = [m for m in models if m not in EXHAUSTED] if attempt == 0 else busy
+        if attempt == 1:
+            if not busy:
+                break
+            time.sleep(1.5)
+        for model in todo:
+            try:
+                r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                                  headers={"x-goog-api-key": key}, json=ai_body(model, parts, max_tokens),
+                                  timeout=timeout + (10 if model.startswith("gemma") else 0))
+            except requests.RequestException:
+                if attempt == 0:
+                    busy.append(model)
+                continue
+            if r.status_code == 429:
+                LIMITED[model] += 1
+                if re.search(r"PerDay|per day|daily", getattr(r, "text", "") or "", re.I):
+                    _save_exhausted(model)
+            elif r.ok:
+                USAGE[model] += 1                      # only answered calls count as usage
+            if not r.ok:
+                print(f"AI {model}: HTTP {r.status_code}", file=sys.stderr)
+                if r.status_code in (500, 503) and attempt == 0:
+                    busy.append(model)
+                continue
+            try:
+                parts_out = r.json()["candidates"][0]["content"]["parts"]
+                text = "".join(p.get("text", "") for p in parts_out if not p.get("thought"))
+                return text.replace("```json", "").replace("```", ""), model
+            except (KeyError, IndexError, ValueError):
+                continue
+    return None, ""
+
+
 # ---------- AI check (Gemini) ----------
 
 AI_PROMPT = """You check eBay UK listings for a reseller. Product wanted: {product} ({model}).
 Decide if this listing is a COMPLETE, WORKING {model} that can be resold as one.
 Answer "no" if: it is an accessory, box, game, part, code or a different product/model; it is faulty, broken, for parts, untested, locked or banned; or the photo clearly shows a different item or serious damage.
+READ THE WHOLE DESCRIPTION: sellers often hide the fault there while the title looks normal. If the seller notes or description say it is dead, won't turn on / no power, has a fault (e.g. no display/HDMI fault, disc drive not working, overheating, blue light, error codes), is for spares or repair, or the account/console is banned or locked, answer "no" with code "faulty", even if the title and photo look fine.
 Answer "unsure" if key facts are missing (e.g. stock photo plus vague text, or main parts like controllers/charger missing).
 {extra}Otherwise answer "yes".
 If (and only if) you answer "no", also give "code", exactly one of: accessory, different_model, faulty, missing_essential_part, not_the_item, other.
@@ -663,8 +837,7 @@ def apply_ai_rules(verdict: str, code: str | None, reason: str) -> tuple[str, st
 
 def ai_check(cat: dict, row: dict, details: dict) -> tuple[str, str, str]:
     """Ask Gemini whether the listing is the real, complete, working item. Returns (verdict, reason, model)."""
-    key = os.environ.get("GEMINI_API_KEY")
-    if not key or DRY_RUN:
+    if not os.environ.get("GEMINI_API_KEY") or DRY_RUN:
         return "skipped", "AI check not configured", ""
     d = details or {}
     aspects = "; ".join(f"{a.get('name')}: {a.get('value')}" for a in (d.get("localizedAspects") or [])[:15])
@@ -672,7 +845,7 @@ def ai_check(cat: dict, row: dict, details: dict) -> tuple[str, str, str]:
         product=cat.get("label", cat["id"]), model=row.get("variant") or cat.get("label"), extra=PAD_RULE if cat.get("needs_controller") else "",
         title=row.get("title"), price=row.get("price"), all_in=row.get("all_in"),
         condition=d.get("condition", "?"), cond_desc=(d.get("conditionDescription") or "-")[:400],
-        aspects=aspects[:600] or "-", desc=_strip_html(d.get("shortDescription") or d.get("description") or "")[:1500] or "-")
+        aspects=aspects[:600] or "-", desc=listing_text(d)[:3000] or "-")
     parts = [{"text": prompt}]
     img = ((d.get("image") or {}).get("imageUrl")) or row.get("image_url")
     if img:
@@ -683,30 +856,16 @@ def ai_check(cat: dict, row: dict, details: dict) -> tuple[str, str, str]:
                                               "data": base64.b64encode(ir.content).decode()}})
         except requests.RequestException:
             pass
-    body = {"contents": [{"parts": parts}],
-            "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "maxOutputTokens": 160}}
-    for model in CONFIG.get("ai_models", ["gemini-3.5-flash-lite", "gemini-2.5-flash-lite"]):
+    text, model = ai_call(CONFIG.get("ai_models", []), parts, 160, timeout=12)
+    if text is not None:
         try:
-            r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                              headers={"x-goog-api-key": key}, json=body, timeout=12)
-        except requests.RequestException:
-            continue
-        if r.status_code == 429:
-            LIMITED[model] += 1
-        elif r.status_code != 404:
-            USAGE[model] += 1
-        if not r.ok:                               # 429 = free allowance used up, 404 = model name not available
-            print(f"AI {model}: HTTP {r.status_code}", file=sys.stderr)
-            continue
-        try:
-            text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
             out = json.loads(text[text.find("{"): text.rfind("}") + 1])
             verdict = str(out.get("verdict", "unsure")).lower()
             verdict = verdict if verdict in ("yes", "no", "unsure") else "unsure"
             verdict, reason = apply_ai_rules(verdict, str(out.get("code") or ""), str(out.get("reason", ""))[:120])
             return verdict, reason, model
-        except (KeyError, IndexError, ValueError):
-            continue
+        except (KeyError, IndexError, ValueError, AttributeError):
+            pass
     return "unavailable", "AI check unavailable right now", ""
 
 
@@ -734,8 +893,7 @@ Reply with a JSON array only, one object per listing:
 def ai_screen(batch: list[tuple[dict, dict]]) -> dict | None:
     """Text-only batch check of listings the word filters dropped. One Gemini request per ~30 listings.
     Returns {item_id: (verdict, model_name, reason, ai_model)} or None if Gemini is unavailable."""
-    key = os.environ.get("GEMINI_API_KEY")
-    if not key or DRY_RUN or not batch:
+    if not os.environ.get("GEMINI_API_KEY") or DRY_RUN or not batch:
         return None
     out = {}
     size = CONFIG.get("ai_screen_batch", 30)
@@ -746,29 +904,15 @@ def ai_screen(batch: list[tuple[dict, dict]]) -> dict | None:
                              + "; ".join(m["name"] for m in c["models"]) for cid, c in cats.items())
         listings = "\n".join(f"{i} | {cat['id']} | £{c['all_in']:.0f} | {c.get('condition') or '?'} | {c['title']}"
                              for i, (cat, c) in enumerate(part))
-        body = {"contents": [{"parts": [{"text": SCREEN_PROMPT.format(products=products, listings=listings)}]}],
-                "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
-                                     "maxOutputTokens": 60 * len(part) + 200}}
         got = None
-        for model in CONFIG.get("ai_models", ["gemini-3.5-flash-lite"]):
+        text, model = ai_call(CONFIG.get("ai_screen_models") or CONFIG.get("ai_models", []),
+                              [{"text": SCREEN_PROMPT.format(products=products, listings=listings)}],
+                              60 * len(part) + 200, timeout=30)
+        if text is not None:
             try:
-                r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                                  headers={"x-goog-api-key": key}, json=body, timeout=25)
-            except requests.RequestException:
-                continue
-            if r.status_code == 429:
-                LIMITED[model] += 1
-            elif r.status_code != 404:
-                USAGE[model] += 1
-            if not r.ok:
-                print(f"AI screen {model}: HTTP {r.status_code}", file=sys.stderr)
-                continue
-            try:
-                text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
                 got = (json.loads(text[text.find("["): text.rfind("]") + 1]), model)
-                break
-            except (KeyError, IndexError, ValueError):
-                continue
+            except (ValueError, AttributeError):
+                got = None
         if got is None:
             return out or None                                  # whatever was screened so far still counts
         answers, model = got
@@ -838,7 +982,7 @@ def save_new(rows: list[dict]) -> list[dict]:
 
 PACIFIC, UK = ZoneInfo("America/Los_Angeles"), ZoneInfo("Europe/London")
 USAGE_NAMES = {"gemini-3.5-flash-lite": "Gemini 3.5 Flash-Lite", "gemini-3.1-flash-lite": "Gemini 3.1 Flash-Lite",
-               "gemini-2.5-flash-lite": "Gemini 2.5 Flash-Lite", "ebay": "eBay searches + lookups"}
+               "gemma-4-26b-a4b-it": "Gemma 4 26B", "gemma-4-31b-it": "Gemma 4 31B", "ebay": "eBay searches + lookups"}
 
 
 def usage_day(now: datetime | None = None):
@@ -1024,15 +1168,18 @@ def discord_alert(row: dict, offers: bool = False) -> str | None:
     ]
     checked, stale = price_age(CAT_BY_ID.get(row.get("category"), {}).get("prices_checked"), datetime.now(timezone.utc).date())
     card_notes = (row["notes"].split("\n") if row.get("notes") else []) + (
-        ["⚠️ Resale prices are over 2 weeks old; double-check sold listings."] if stale else [])
+        ["⚠️ PRICES 2+ WEEKS OLD: check sold listings"] if stale else [])
     if card_notes:
-        fields.append({"name": "📝 Notes", "value": "\n".join(f"• {n}" for n in card_notes)[:1000], "inline": False})
+        fields.append({"name": "📝 Notes", "value": "\n".join(card_notes)[:1000], "inline": False})
     embed = {
         "author": {"name": f"{label} · {row['variant']}"},
         "title": row["title"][:250], "url": row["url"], "color": colour, "fields": fields,
         "footer": {"text": f"{row['category']} · {row['lane'].lower()} · rating {row['rating'].lower()}" + (f" · {checked}" if checked else "")},
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    badge = delivery_badge(row)
+    if badge:
+        embed["description"] = badge
     if row.get("image_url"):
         embed["thumbnail"] = {"url": row["image_url"]}
     ping = not offers and (key == "HOT" or (row["verdict"] == "DEAL" and row["rating"] == "SOLID"))   # only good deals buzz your phone
@@ -1159,6 +1306,11 @@ def screen_soft(old: dict, cand_ids: set, fresh: list) -> list[dict]:
             continue
         todo.append((cat, c))
     if not todo:
+        return []
+    left = ai_allowance_left()
+    if left is not None and left <= CONFIG.get("ai_reserve_for_checks", 0):
+        LOG.append(f"🤖 AI screen paused: {left} AI calls left today are kept for photo checks "
+                   f"({len(todo)} filtered listing(s) skipped)")
         return []
     cap = CONFIG.get("ai_screen_max", 60)
     waiting = len(todo) - cap
@@ -1300,16 +1452,18 @@ def main() -> int:
             continue
         row = score(cat, c, details)
         if row and c.get("rescued"):
-            row["notes"] = f"🤖 Found by AI: the word filters skipped it ({c['rescued']})" + ("\n" + row["notes"] if row.get("notes") else "")
+            row["notes"] = f"🤖 AI found it (filters said: {c['rescued']})" + ("\n" + row["notes"] if row.get("notes") else "")
         if row and (for_deals(row) or for_offers(row)):
             row["ai_verdict"], row["ai_reason"], row["ai_model"] = ai_check(cat, row, details)
             if row["ai_verdict"] == "no":
                 row["status"] = "ai_rejected"           # saved for review, never posted
             else:
-                tag = {"yes": "🤖 AI checked: looks genuine", "unsure": "🤖 AI unsure"}.get(row["ai_verdict"], "🤖 AI check not run")
-                row["notes"] = (f"{tag} ({row['ai_reason']})" if row["ai_reason"] else tag) + ("\n" + row["notes"] if row.get("notes") else "")
+                tag = {"yes": "🤖 AI OK", "unsure": "🤖 AI UNSURE"}.get(row["ai_verdict"], "🤖 AI NOT RUN (read the description yourself)")
+                why = row["ai_reason"] if row["ai_verdict"] in ("yes", "unsure") else ""
+                row["notes"] = (f"{tag}: {why}" if why else tag) + ("\n" + row["notes"] if row.get("notes") else "")
         if row is None:
-            LOG.append(f"❌ {short(c)}: rejected after reading the listing (wrong spec, damage or price)")
+            LOG.append(f"❌ {short(c)}: rejected after reading the listing ("
+                       + (REJECT_WHY.get(c["item_id"]) or "wrong spec, damage or price") + ")")
         elif row.get("status") == "ai_rejected":
             LOG.append(f"🤖❌ {short(row)}: AI said no ({row.get('ai_reason') or 'no reason'})")
         elif for_deals(row):

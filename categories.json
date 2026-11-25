@@ -1038,8 +1038,7 @@
   "track_per_run": 5,
   "ai_models": [
     "gemini-3.5-flash-lite",
-    "gemini-3.1-flash-lite",
-    "gemini-2.5-flash-lite"
+    "gemini-3.1-flash-lite"
   ],
   "full_scan_every_min": 12,
   "business_fee_pct": 0.075,
@@ -1048,7 +1047,6 @@
   "usage_limits": {
     "gemini-3.5-flash-lite": 500,
     "gemini-3.1-flash-lite": 500,
-    "gemini-2.5-flash-lite": 20,
     "ebay": 5000
   },
   "junk_soft": [
@@ -1082,5 +1080,10 @@
       "every_min": 1,
       "limit": 200
     }
-  ]
+  ],
+  "ai_screen_models": [
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite"
+  ],
+  "ai_reserve_for_checks": 250
 }
