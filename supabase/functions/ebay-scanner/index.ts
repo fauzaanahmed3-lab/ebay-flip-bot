@@ -10,7 +10,7 @@
 
 // deno-lint-ignore-file no-explicit-any
 import * as L from "./logic.ts";
-import CONFIG_FILE from "./categories.json" with { type: "json" };
+import CONFIG_FILE from "../../../categories.json" with { type: "json" };   // the repo's root config (one source of truth)
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
